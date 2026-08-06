@@ -40,3 +40,32 @@ def test_discarding_an_item_you_do_not_hold_is_rejected() -> None:
         inventory.discard("chainsaw")
 
     assert inventory.held == ["machete"]
+
+
+def test_using_a_can_of_soda_gives_two_health() -> None:
+    inventory = Inventory()
+    inventory.add("can_of_soda")
+
+    effect = inventory.use("can_of_soda")
+
+    assert effect.health == 2
+
+
+def test_using_a_machete_gives_attack_not_health() -> None:
+    inventory = Inventory()
+    inventory.add("machete")
+
+    effect = inventory.use("machete")
+
+    assert effect.attack == 2
+    assert effect.health == 0
+
+
+def test_using_an_item_you_do_not_hold_is_rejected() -> None:
+    inventory = Inventory()
+    inventory.add("machete")
+
+    with pytest.raises(ValueError, match="can_of_soda"):
+        inventory.use("can_of_soda")
+
+    assert inventory.held == ["machete"]
