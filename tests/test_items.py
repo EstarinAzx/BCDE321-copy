@@ -51,14 +51,77 @@ def test_using_a_can_of_soda_gives_two_health() -> None:
     assert effect.health == 2
 
 
-def test_using_a_machete_gives_attack_not_health() -> None:
+def test_holding_a_machete_gives_a_two_point_attack_bonus() -> None:
     inventory = Inventory()
     inventory.add("machete")
 
-    effect = inventory.use("machete")
+    assert inventory.attack_bonus() == 2
 
-    assert effect.attack == 2
-    assert effect.health == 0
+
+def test_empty_hands_give_no_attack_bonus() -> None:
+    assert Inventory().attack_bonus() == 0
+
+
+def test_a_carried_consumable_gives_no_attack_bonus() -> None:
+    inventory = Inventory()
+    inventory.add("can_of_soda")
+
+    assert inventory.attack_bonus() == 0
+
+
+def test_carrying_two_weapons_applies_only_the_stronger_one() -> None:
+    inventory = Inventory()
+    inventory.add("golf_club")
+    inventory.add("machete")
+
+    assert inventory.attack_bonus() == 2
+
+
+def test_holding_a_chainsaw_gives_a_three_point_attack_bonus() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+
+    assert inventory.attack_bonus() == 3
+
+
+def test_chainsaw_still_has_fuel_for_its_second_battle() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+
+    inventory.record_battle()
+
+    assert inventory.attack_bonus() == 3
+
+
+def test_chainsaw_gives_no_bonus_once_its_fuel_is_spent() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+
+    inventory.record_battle()
+    inventory.record_battle()
+
+    assert inventory.attack_bonus() == 0
+
+
+def test_a_spent_chainsaw_is_still_carried() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+
+    inventory.record_battle()
+    inventory.record_battle()
+
+    assert inventory.held == ["chainsaw"]
+
+
+def test_a_weaker_weapon_is_used_once_the_chainsaw_is_spent() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+    inventory.add("machete")
+
+    inventory.record_battle()
+    inventory.record_battle()
+
+    assert inventory.attack_bonus() == 2
 
 
 def test_using_an_item_you_do_not_hold_is_rejected() -> None:
