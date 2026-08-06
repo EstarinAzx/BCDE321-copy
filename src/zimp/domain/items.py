@@ -48,6 +48,8 @@ class Inventory:
 
     def use(self, item_id: str) -> Effect:
         self._require_held(item_id)
+        if item_id not in CONSUMABLE_EFFECTS:
+            raise ValueError(f"a {item_id} is not something you can use")
         return CONSUMABLE_EFFECTS[item_id]
 
     def record_battle(self) -> None:

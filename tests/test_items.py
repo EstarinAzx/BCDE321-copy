@@ -132,3 +132,13 @@ def test_using_an_item_you_do_not_hold_is_rejected() -> None:
         inventory.use("can_of_soda")
 
     assert inventory.held == ["machete"]
+
+
+def test_using_a_weapon_is_rejected() -> None:
+    inventory = Inventory()
+    inventory.add("machete")
+
+    with pytest.raises(ValueError, match="machete"):
+        inventory.use("machete")
+
+    assert inventory.held == ["machete"]
