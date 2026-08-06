@@ -11,7 +11,7 @@ class Mode(Enum):
     WON = auto(),
     LOST = auto(),
 
-class TileEffects(Enum):
+class EndTurnEffects(Enum):
     NONE = auto(),
     HP = auto(),
     ITEM = auto(),
