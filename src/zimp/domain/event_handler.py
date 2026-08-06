@@ -3,6 +3,7 @@ from enum import Enum, auto
 import random
 
 from zimp.domain.enums import Mode, EndTurnEffects
+from zimp.domain.current_state import CurrentState
 
 class EffectType(Enum):
     NONE = auto()
@@ -41,22 +42,22 @@ class EventHandler:
         self.dev_cards = CARDS
         self.deck: list[DevCard] = []
 
-        self._shuffle_deck()
+        self.shuffle_deck()
 
-    def _shuffle_deck(self) -> None:
+    def shuffle_deck(self) -> None:
         """Shuffle the dev card deck and discard two"""
         self.deck.clear()
         self.deck.extend(self.dev_cards)
         random.shuffle(self.deck)
         self.deck = self.deck[2:]
 
-    def _draw_card(self, state) -> DevCard | None:
-        """Draw a dev card from the deck"""
+    def draw_card(self, state: CurrentState) -> DevCard | None:
+        """Draw a dev card from the deck and return it"""
         if not self.deck:
-            if state.time == 2:
+            if state.get_time() == 2:
                 return None
-            state.time += 1
-            self._shuffle_deck()
+            state.advance_time() # Contact assumption
+            self.shuffle_deck()
 
         return self.deck.pop()
 
@@ -64,51 +65,54 @@ class EventHandler:
         """Return the number of remaining dev cards in the deck"""
         return len(self.deck)
 
-    def resolve_card(self, state, tile) -> None:
-        active_card = self._draw_card(state)
-        print(active_card)
+    def resolve_card(self, state: CurrentState) -> int:
+        """Draw and resolve a new card, then return the number of zombies to spawn"""
+        active_card = self.draw_card(state)
+
         if active_card is None:
-            return
+            return 0
 
         current_effect = active_card.effects[state.time]
 
         if current_effect.effect == EffectType.HP:
-            state.hp += current_effect.value
+            state.change_hp(current_effect.value) # Contact assumption
         elif current_effect.effect == EffectType.ZOMBIES:
-            state.mode = Mode.COMBAT
-            tile.num_zombies = current_effect.value
+            state.set_mode(Mode.COMBAT) # Contact assumption
+            return current_effect.value
         elif current_effect.effect == EffectType.ITEM:
-            state.mode = Mode.SEARCH_FOR_ITEM
+            state.set_mode(Mode.SEARCH_FOR_ITEM) # Contact assumption
 
-    def resolve_attack(self, state, tile) -> None:
+        return 0
+
+    def resolve_attack(self, state: CurrentState, num_zombies: int) -> None:
         """Conclude combat with zombies in the current room"""
-        damage = max(0, tile.num_zombies - state.attack - 1)
-        state.hp -= damage
+        damage = max(0, num_zombies - state.get_attack() - 1)
+        state.change_hp(-damage) # Contact assumption
 
-        tile.num_zombies = 0
-
-    def resolve_flee(self, state) -> None:
+    def resolve_flee(self, state: CurrentState) -> None:
         """Flee zombies in the current room"""
-        state.hp -= 1
+        state.change_hp(-1) # Contact assumption
 
-    def search_for_item(self, state) -> int | None:
+    def search_for_item(self, state: CurrentState) -> int | None:
         """After an event has found an item, draw the next card to see what it is and return its id."""
-        new_card = self._draw_card(state)
+        new_card = self.draw_card(state)
         if new_card is None:
             return None
 
-        state.mode = Mode.FOUND_ITEM
+        state.set_mode(Mode.FOUND_ITEM) # Contact assumption
         return new_card.item
 
-    def end_turn(self, state, tile)  -> None:
-        """Conclude the current turn and resolve room effects"""
-        if tile.end_effect == EndTurnEffects.HP:
-            state.hp += 1
-        elif tile.end_effect == EndTurnEffects.ITEM:
-            state.mode = Mode.SEARCH_FOR_ITEM
-        elif tile.end_effect == EndTurnEffects.FIND_TOTEM:
-            self.resolve_card(state, tile)
-            state.have_totem = True
-        elif tile.end_effect == EndTurnEffects.BURY_TOTEM and state.have_totem:
-            self.resolve_card(state, tile)
-            state.buried_totem = True
+    def end_turn(self, state: CurrentState, tile_end_effect: EndTurnEffects) -> int:
+        """Conclude the current turn and resolve room effects, then return the number of zombies to spawn"""
+        if tile_end_effect == EndTurnEffects.HP:
+            state.change_hp(1) # Contact assumption
+        elif tile_end_effect == EndTurnEffects.ITEM:
+            state.set_mode(Mode.SEARCH_FOR_ITEM) # Contact assumption
+        elif tile_end_effect == EndTurnEffects.FIND_TOTEM:
+            state.take_totem() # Contact assumption
+            return self.resolve_card(state)
+        elif tile_end_effect == EndTurnEffects.BURY_TOTEM and state.has_got_totem(): # Contact assumption
+            state.bury_totem() # Contact assumption
+            return self.resolve_card(state)
+
+        return 0

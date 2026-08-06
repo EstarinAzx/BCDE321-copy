@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 class Mode(Enum):
-    NONE = auto(),
+    READY_TO_MOVE = auto(),
     PLACE = auto(),
     ZOMBIE_DOOR = auto(),
     DEV_CARD = auto(),
