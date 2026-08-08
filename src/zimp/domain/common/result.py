@@ -44,9 +44,9 @@ class Result[T]:
         """
         return self.__error_code
 
-    def is_success(self) -> bool:
-        """Checks if the Result is success.
+    def is_fail(self) -> bool:
+        """Checks if the Result is a fail.
         Returns:
-            bool: True ff the Result is a success, False if the Result is a fail.
+            bool: True if the Result is a fail, False if the Result is a success.
         """
-        return self.__error_code is None
+        return self.__error_code is not None
