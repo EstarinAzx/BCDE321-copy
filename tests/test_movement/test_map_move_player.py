@@ -1,7 +1,7 @@
 import pytest
 
 from zimp.domain.common.error_code import ErrorCode
-from zimp.domain.movement.movement import Movement
+from zimp.domain.movement.map import Movement
 from zimp.domain.movement.direction import Direction
 from zimp.support.fake_game_mode import GameMode
 
@@ -9,7 +9,7 @@ from zimp.support.fake_game_mode import GameMode
 # ========================== Good Day ========================== #
 
 
-def test_move_mode_valid_move_to_empty_tile_returns_placement_mode():
+def test_when_move_mode_valid_move_to_empty_tile_returns_placement_mode():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2))
     move_game_mode = GameMode.MOVE
@@ -24,7 +24,7 @@ def test_move_mode_valid_move_to_empty_tile_returns_placement_mode():
     assert move_result.get_data() == placement_game_mode
 
 
-def test_move_mode_valid_move_to_known_tile_moves_player():
+def test_when_move_mode_valid_move_to_known_tile_moves_player():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=42)
     move_game_mode = GameMode.MOVE
@@ -44,7 +44,7 @@ def test_move_mode_valid_move_to_known_tile_moves_player():
     assert movement.get_player_position() == new_player_position
 
 
-def test_combat_mode_valid_move_to_known_tile_returns_flee_mode():
+def test_when_combat_mode_valid_move_to_known_tile_returns_flee_mode():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=1)
     combat_game_mode = GameMode.COMBAT
@@ -61,7 +61,7 @@ def test_combat_mode_valid_move_to_known_tile_returns_flee_mode():
     assert move_result.get_data() == flee_mode
 
 
-def test_zombie_door_mode_valid_move_to_empty_tile_creates_zombie_door_in_correct_direction():
+def test_when_zombie_door_mode_valid_move_to_empty_tile_creates_zombie_door_in_correct_direction():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=5)
     zombie_door_game_mode = GameMode.ZOMBIE_DOOR
@@ -79,7 +79,7 @@ def test_zombie_door_mode_valid_move_to_empty_tile_creates_zombie_door_in_correc
     assert any(tile.id == second_tile_id and tile.zombie_door == move_direction for tile in movement.get_tile_data())
 
 
-def test_zombie_door_mode_valid_move_to_empty_tile_adds_zombies_to_current_tile():
+def test_when_zombie_door_mode_valid_move_to_empty_tile_adds_zombies_to_current_tile():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=5)
     zombie_door_game_mode = GameMode.ZOMBIE_DOOR
@@ -100,7 +100,7 @@ def test_zombie_door_mode_valid_move_to_empty_tile_adds_zombies_to_current_tile(
 # ========================== Bad Day ========================== #
 
 
-def test_move_mode_invalid_move_to_empty_tile_with_no_door_returns_door_error():
+def test_when_move_mode_invalid_move_to_empty_tile_with_no_door_returns_door_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2))
     move_game_mode = GameMode.MOVE
@@ -115,7 +115,7 @@ def test_move_mode_invalid_move_to_empty_tile_with_no_door_returns_door_error():
     assert move_result.get_error_code() == door_error
 
 
-def test_move_mode_invalid_move_to_known_tile_with_no_door_returns_door_error():
+def test_when_move_mode_invalid_move_to_known_tile_with_no_door_returns_door_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=42)
     move_game_mode = GameMode.MOVE
@@ -137,7 +137,7 @@ def test_move_mode_invalid_move_to_known_tile_with_no_door_returns_door_error():
     assert move_result.get_error_code() == door_error
 
 
-def test_move_mode_invalid_move_to_cross_area_tile_returns_cross_area_error():
+def test_when_move_mode_invalid_move_to_cross_area_tile_returns_cross_area_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=1)
     move_game_mode = GameMode.MOVE
@@ -160,7 +160,7 @@ def test_move_mode_invalid_move_to_cross_area_tile_returns_cross_area_error():
     assert move_result.get_error_code() == cross_area_error
 
 
-def test_combat_mode_invalid_move_to_empty_tile_returns_flee_error():
+def test_when_combat_mode_invalid_move_to_empty_tile_returns_flee_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=1)
     combat_game_mode = GameMode.COMBAT
@@ -177,7 +177,7 @@ def test_combat_mode_invalid_move_to_empty_tile_returns_flee_error():
     assert move_result.get_error_code() == flee_error
 
 
-def test_combat_mode_invalid_move_to_known_tile_with_no_door_returns_door_error():
+def test_when_combat_mode_invalid_move_to_known_tile_with_no_door_returns_door_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=42)
     combat_game_mode = GameMode.COMBAT
@@ -199,7 +199,7 @@ def test_combat_mode_invalid_move_to_known_tile_with_no_door_returns_door_error(
     assert move_result.get_error_code() == door_error
 
 
-def test_combat_mode_invalid_move_to_cross_area_tile_returns_cross_area_error():
+def test_when_combat_mode_invalid_move_to_cross_area_tile_returns_cross_area_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=1)
     combat_game_mode = GameMode.COMBAT
@@ -222,7 +222,7 @@ def test_combat_mode_invalid_move_to_cross_area_tile_returns_cross_area_error():
     assert move_result.get_error_code() == cross_area_error
 
 
-def test_zombie_door_mode_invalid_move_to_know_tile_returns_zombie_door_error():
+def test_when_zombie_door_mode_invalid_move_to_know_tile_returns_zombie_door_error():
     # Arrange
     movement = Movement(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=5)
     zombie_door_game_mode = GameMode.ZOMBIE_DOOR

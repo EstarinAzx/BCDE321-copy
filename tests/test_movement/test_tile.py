@@ -1,0 +1,114 @@
+import pytest
+
+from zimp.domain.movement.direction import Direction
+from zimp.domain.movement.tile import Tile
+
+
+def test_add_zombies_when_given_a_number_adds_zombies_to_count():
+    # Arrange
+    test_tile = Tile(1, (Direction.NORTH,))
+
+    # Act
+    test_tile.add_zombies(1)
+
+    # Assert
+    assert test_tile.get_zombie_count() == 1
+
+
+def test_defeat_zombies_clears_all_zombies():
+    # Arrange
+    test_tile = Tile(1, (Direction.NORTH,))
+    test_tile.add_zombies(6)
+
+    # Act
+    test_tile.defeat_zombies()
+
+    # Assert
+    assert test_tile.get_zombie_count() == 0
+
+
+@pytest.mark.parametrize("rotation_dir", [Direction.NORTH, Direction.WEST, Direction.SOUTH, Direction.EAST])
+def test_rotate_rotates_to_given_direction(rotation_dir):
+    # Arrange
+    test_tile = Tile(1, (Direction.NORTH,))
+
+    # Act
+    test_tile.rotate(rotation_dir)
+
+    # Assert
+    assert test_tile.get_rotation() == rotation_dir
+
+
+@pytest.mark.parametrize("rotation_dir, door_direction, rotated_door_direction",
+                         [(Direction.NORTH, Direction.WEST, Direction.WEST),
+                          (Direction.WEST, Direction.SOUTH, Direction.EAST),
+                          (Direction.SOUTH, Direction.EAST, Direction.WEST),
+                          (Direction.EAST, Direction.SOUTH, Direction.WEST), ])
+def test_get_door_direction_when_rotated_returns_rotated_direction(rotation_dir, door_direction,
+                                                                   rotated_door_direction):
+    # Arrange
+    test_tile = Tile(1, (door_direction,))
+    test_tile.rotate(rotation_dir)
+
+    # Act
+    door_directions = test_tile.get_door_directions()
+
+    # Assert
+    assert door_directions[0] == rotated_door_direction
+
+
+@pytest.mark.parametrize("rotation_dir, first_valid_door, second_valid_door, first_invalid_door, second_invalid_door",
+                         [(Direction.NORTH, Direction.WEST, Direction.SOUTH, Direction.NORTH, Direction.EAST),
+                          (Direction.WEST, Direction.SOUTH, Direction.EAST, Direction.NORTH, Direction.WEST),
+                          (Direction.SOUTH, Direction.EAST, Direction.NORTH, Direction.WEST, Direction.SOUTH),
+                          (Direction.EAST, Direction.NORTH, Direction.WEST, Direction.SOUTH, Direction.EAST), ])
+def test_has_door_in_direction_when_rotated_returns_true_on_matching_directions(rotation_dir, first_valid_door,
+                                                                                second_valid_door,
+                                                                                first_invalid_door,
+                                                                                second_invalid_door):
+    # Arrange & Act
+    door_directions = (Direction.WEST, Direction.SOUTH)
+    test_tile = Tile(1, door_directions)
+    test_tile.rotate(rotation_dir)
+
+    # Assert
+    assert test_tile.has_door_in_direction(first_valid_door) is True
+    assert test_tile.has_door_in_direction(second_valid_door) is True
+    assert test_tile.has_door_in_direction(first_invalid_door) is False
+    assert test_tile.has_door_in_direction(second_invalid_door) is False
+
+
+@pytest.mark.parametrize("rotation_dir, first_valid_door, second_valid_door, first_invalid_door, second_invalid_door",
+                         [(Direction.NORTH, Direction.EAST, Direction.NORTH, Direction.WEST, Direction.SOUTH),
+                          (Direction.WEST, Direction.NORTH, Direction.WEST, Direction.SOUTH, Direction.EAST),
+                          (Direction.SOUTH, Direction.WEST, Direction.SOUTH, Direction.NORTH, Direction.EAST),
+                          (Direction.EAST, Direction.SOUTH, Direction.EAST, Direction.NORTH, Direction.WEST), ])
+def test_has_door_in_opposite_direction_when_rotated_returns_true_on_opposite_directions(rotation_dir, first_valid_door,
+                                                                                         second_valid_door,
+                                                                                         first_invalid_door,
+                                                                                         second_invalid_door):
+    # Arrange & Act
+    door_directions = (Direction.WEST, Direction.SOUTH)
+    test_tile = Tile(1, door_directions)
+    test_tile.rotate(rotation_dir)
+
+    # Assert
+    assert test_tile.has_door_in_opposite_direction(first_valid_door) is True
+    assert test_tile.has_door_in_opposite_direction(second_valid_door) is True
+    assert test_tile.has_door_in_opposite_direction(first_invalid_door) is False
+    assert test_tile.has_door_in_opposite_direction(second_invalid_door) is False
+
+
+@pytest.mark.parametrize("rotation_dir, zombie_door_direction",
+                         [(Direction.NORTH, Direction.EAST), (Direction.WEST, Direction.NORTH),
+                          (Direction.SOUTH, Direction.WEST), (Direction.EAST, Direction.SOUTH), ])
+def test_add_zombie_door_when_given_direction_adds_door_in_correct_direction(rotation_dir, zombie_door_direction):
+    # Arrange & Act
+    test_tile = Tile(1, (Direction.NORTH,))
+    test_tile.rotate(rotation_dir)
+
+    # Act
+    test_tile.add_zombie_door(zombie_door_direction)
+
+    # Assert
+    assert test_tile.has_door_in_direction(zombie_door_direction) is True
