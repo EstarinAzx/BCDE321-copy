@@ -18,11 +18,13 @@ class GameMap:
         self.__starting_position: tuple[int, int] = starting_position
         self.__randomizer_seed: int | None = randomizer_seed
         self.__display_tiles: dict[tuple[int, int], Tile] = {}
-        self.__player_position: tuple[int, int] = starting_position
+        self.__player_position: tuple[int, int]
         # tile addition details
-        self.__inside_tile_order_index: int = 0
-        self.__outside_tile_order_index: int = 0
-        self.__player_is_outside: bool = False
+        self.__inside_tile_order: list[int]
+        self.__outside_tile_order: list[int]
+        self.__inside_tile_order_index: int
+        self.__outside_tile_order_index: int
+        self.__player_is_outside: bool
         # tile placement details
         self.__last_added_tile: Tile
         self.__last_move_direction: Direction
@@ -50,10 +52,25 @@ class GameMap:
             8: Tile(16, (Direction.EAST, Direction.SOUTH), TileEffect.BURY_TOTEM, is_outside_tile=True)
         }
 
-        # shuffle tiles
+        # setup map
+        self.__setup()
+
+    def __setup(self) -> None:
+        """Sets up the game map."""
+        self.__inside_tile_order_index = 0
+        self.__outside_tile_order_index = 0
+        self.__player_is_outside = False
+        self.__player_position = self.__starting_position
+        self.__shuffle_tiles()
+        self.__add_tile(self.__starting_position)  # add start tile
+        self.__display_tiles[self.__starting_position].lock()  # lock first tile
+
+    def __shuffle_tiles(self) -> None:
+        """Shuffles order of inside/outside tiles."""
         random.seed(self.__randomizer_seed)
         inside_random_order = random.sample(range(1, 9), k=8)
         outside_random_order = random.sample(range(1, 9), k=8)
+
         # add inside/outside starting tiles to start of list
         inside_start_tile_index = 1
         outside_start_tile_index = 3
@@ -63,9 +80,6 @@ class GameMap:
         outside_random_order.insert(0, outside_start_tile_index)
         self.__inside_tile_order = inside_random_order
         self.__outside_tile_order = outside_random_order
-
-        self.__add_tile(self.__starting_position)  # add start tile
-        self.__display_tiles[self.__starting_position].lock()  # lock first tile
 
     def __add_tile(self, position: tuple[int, int]) -> ErrorCode | None:
         """Adds next tile to the displayed tiles.
@@ -255,6 +269,45 @@ class GameMap:
         self.__last_added_tile.add_zombie_door(direction)
         self.add_zombies(3)
 
+    def __handle_move_to_blank_tile(self, direction: Direction, current_tile: Tile,
+                                    destination_position: tuple[int, int]) -> ErrorCode | None:
+        """Handles move to blank tile.
+        Args:
+            direction (Direction): Direction player is trying to move.
+            current_tile (Tile): Current tile the player is on.
+            destination_position (tuple[int, int]): Position the player is trying to move to.
+        Returns:
+            ErrorCode: If something went wrong. | None: If nothing went wrong.
+        """
+        if current_tile.has_door_in_direction(direction):
+            # door opens in direction
+            setup_place_error = self.__setup_placement_tile(direction, current_tile, destination_position)
+            if setup_place_error is not None:
+                return setup_place_error  # return error
+            return None  # no error - need placement mode
+        else:
+            return ErrorCode.INVALID_MOVE_NO_DOOR  # no door opens in direction
+
+    def __handle_move_to_known_tile(self, direction: Direction, destination_tile: Tile, current_tile: Tile,
+                                    destination_position: tuple[int, int]) -> ErrorCode | None:
+        """Handles move to known tile.
+        Args:
+            direction (Direction): Direction player is trying to move.
+            destination_tile (Tile): Destination tile the player is trying to move to.
+            current_tile (Tile): Current tile the player is on.
+            destination_position (tuple[int, int]): Position the player is trying to move to.
+        Returns:
+            ErrorCode: If something went wrong. | None: If nothing went wrong.
+        """
+        move_error = self.__is_move_valid(current_tile, destination_tile, direction)
+        if move_error is None:
+            # valid move updates player
+            self.__update_player_area(direction, current_tile)
+            self.__player_position = destination_position
+            return None  # no error - move was success
+        else:
+            return move_error  # invalid move
+
     def move_player(self, mode: GameMode, direction: Direction) -> Result:
         """Attempts to move the player in the given direction.
 
@@ -281,55 +334,46 @@ class GameMap:
         # get new position
         destination_position_result = self.__calculate_position(self.__player_position, direction)
         if destination_position_result.is_fail():
-            return destination_position_result  # Error when trying to get position
-        else:
-            destination_position = destination_position_result.get_data()
+            return destination_position_result  # error when trying to get position
 
+        # get dest position and tile
+        destination_position = destination_position_result.get_data()
         destination_tile = self.__display_tiles.get(destination_position)
         match mode:
             case GameMode.MOVE:
                 if destination_tile is None:
                     # move to blank tile
-                    if current_tile.has_door_in_direction(direction):
-                        # activate placement mode if door opens in direction
-                        setup_place_error = self.__setup_placement_tile(direction, current_tile, destination_position)
-                        if setup_place_error is not None:
-                            return Result.fail(setup_place_error)  # return error
-                        else:
-                            return Result.success(GameMode.PLACEMENT)  # need placement mode
+                    error = self.__handle_move_to_blank_tile(direction, current_tile, destination_position)
+                    if error is not None:
+                        return Result.fail(error)  # invalid move
                     else:
-                        return Result.fail(ErrorCode.INVALID_MOVE_NO_DOOR)  # no door opens in direction
+                        return Result.success(GameMode.PLACEMENT)  # placement game mode needed
                 else:
                     # move to known tile
-                    move_error = self.__is_move_valid(current_tile, destination_tile, direction)
-                    if move_error is None:
-                        # valid move updates player
-                        self.__update_player_area(direction, current_tile)
-                        self.__player_position = destination_position
-                        return Result.success(None)  # move was success
+                    error = self.__handle_move_to_known_tile(direction, destination_tile, current_tile,
+                                                             destination_position)
+                    if error is not None:
+                        return Result.fail(error)  # invalid move
                     else:
-                        return Result.fail(move_error)  # invalid move
+                        return Result.success(None)  # successful move no mode needed
             case GameMode.COMBAT:
                 if destination_tile is None:
                     return Result.fail(ErrorCode.INVALID_MOVE_FLEE_TO_UNKNOWN_TILE)  # cant flee to unknown tile
                 else:
                     # flee to known tile
-                    move_error = self.__is_move_valid(current_tile, destination_tile, direction)
-                    if move_error is None:
-                        # valid move updates player
-                        self.__update_player_area(direction, current_tile)
-                        self.__player_position = destination_position
-                        return Result.success(GameMode.FLED)  # fled game mode needed
+                    error = self.__handle_move_to_known_tile(direction, destination_tile, current_tile,
+                                                             destination_position)
+                    if error is not None:
+                        return Result.fail(error)  # invalid move
                     else:
-                        return Result.fail(move_error)  # invalid move
+                        return Result.success(GameMode.FLED)  # fled game mode needed
             case GameMode.ZOMBIE_DOOR:
                 if destination_tile is None:
                     # create zombie door opening to desired destination
                     self.__create_zombie_door(direction)
                     return Result.success(None)  # no mode needed
                 else:
-                    return Result.fail(
-                        ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE)  # cant make z door to known tile
+                    return Result.fail(ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE)  # cant make door to known tile
 
     def rotate_placement_tile(self, mode: GameMode) -> ErrorCode | None:
         # cannot rotate if locked
@@ -382,6 +426,33 @@ class GameMap:
     def get_tile_effect(self) -> TileEffect:
         pass
 
+    def get_map_dimensions(self) -> tuple[int, int]:
+        return self.__map_dimensions
+
     def reset(self, map_dimensions: tuple[int, int] | None = None, starting_position: tuple[int, int] | None = None,
               randomizer_seed: int | None = None) -> ErrorCode | None:
-        pass
+        """Resets the game map.
+        Args:
+            map_dimensions (tuple[int, int] | None): Optional new map dimensions.
+            starting_position (tuple[int, int] | None): Optional new starting position.
+            randomizer_seed (int | None): Optional new randomizer seed, no seed will randomize the seed.
+        Returns:
+            ErrorCode: If something went wrong. | None: If nothing went wrong.
+        """
+        if map_dimensions is not None:
+            # set map dimensions
+            self.__map_dimensions = map_dimensions
+
+        if starting_position is not None:
+            # set new starting pos
+            self.__starting_position = starting_position
+
+        # set new seed for tile randomizer
+        self.__randomizer_seed = randomizer_seed
+
+        # reset and clear all displayed tiles
+        for position, tile in self.__display_tiles.items():
+            tile.reset()
+        self.__display_tiles.clear()
+        self.__setup()
+        return None  # reset was success
