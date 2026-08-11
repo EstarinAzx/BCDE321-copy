@@ -42,6 +42,6 @@ class MovementContract(Protocol):
     def get_tile_effect(self) -> TileEffect:
         """Get tile effect of current tile"""
 
-    def reset(self, starting_position: tuple[int, int] | None = None,
+    def reset(self, map_dimensions: tuple[int, int] | None = None, starting_position: tuple[int, int] | None = None,
               randomizer_seed: int | None = None) -> ErrorCode | None:
-        """Reset tiles and optionally set player starting position and/or tile randomizer seed"""
+        """Reset tiles and optionally set map dimensions, player starting position, and/or tile randomizer seed"""

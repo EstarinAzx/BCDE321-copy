@@ -1,4 +1,5 @@
 from zimp.domain.movement.direction import Direction
+from zimp.domain.movement.tile_data import TileData
 from zimp.domain.movement.tile_effect import TileEffect
 
 
@@ -39,6 +40,9 @@ class Tile:
     def is_locked(self) -> bool:
         return self.__is_locked
 
+    def lock(self) -> None:
+        self.__is_locked = True
+
     def add_zombies(self, number_of_zombies: int) -> None:
         self.__zombie_count += number_of_zombies
 
@@ -57,12 +61,11 @@ class Tile:
         door_directions = tuple(
             map(lambda direction: Direction((direction.value + self.__rotation.value) % 360), self.__doors))
 
+        # adds zombie door direction if not none
         if self.__zombie_door is None:
             return door_directions
-
-        # adds zombie door direction if not none
-        zombie_door_direction = Direction((self.__zombie_door.value + self.__rotation.value) % 360)
-        return *door_directions, zombie_door_direction
+        else:
+            return *door_directions, self.__zombie_door
 
     def has_door_in_direction(self, direction: Direction) -> bool:
         """Checks if the tile has a door in the given direction.
@@ -95,6 +98,20 @@ class Tile:
         Args:
             direction (Direction): direction of the zombie door.
         """
-        # removes the rotation from the direction to get the true direction of the door
-        true_direction = Direction((direction.value - self.__rotation.value) % 360)
-        self.__zombie_door = true_direction
+        self.__zombie_door = direction
+
+    def reset(self) -> None:
+        """Resets the tiles mutable data to its default values."""
+        self.__zombie_door = None
+        self.__rotation = Direction.NORTH
+        self.__zombie_count = 0
+        self.__is_locked = False
+
+    def get_data(self, position: tuple[int, int]) -> TileData:
+        """Gets the tiles data.
+        Args:
+            position (tuple[int, int]): position of the tile.
+        Returns:
+            TileData: the tiles data.
+        """
+        return TileData(self.__id, position, self.__rotation, self.__zombie_door, self.__zombie_count, self.__is_locked)

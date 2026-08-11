@@ -6,6 +6,7 @@ class ErrorCode(Enum):
     DEPLETED_INSIDE_TILES = auto()
     DEPLETED_OUTSIDE_TILES = auto()
     INVALID_POSITION = auto()
+    INVALID_ACTION_ROTATE_LOCKED_TILE = auto()
     INVALID_MOVE_OUT_OF_BOUNDS = auto()
     INVALID_MOVE_NO_DOOR = auto()
     INVALID_MOVE_ACROSS_AREAS = auto()
