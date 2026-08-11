@@ -390,8 +390,39 @@ class GameMap:
         self.__last_added_tile.lock()
         self.__player_position = self.__last_move_destination_position
 
-    def need_zombie_door(self, mode: GameMode) -> bool:
-        pass
+    def need_zombie_door(self) -> bool:
+        """Checks if zombie door is needed.
+
+        Zombie doors are needed if the player is inside/outside, no normal doors open to an
+        empty tile, and not all tiles have been explored.
+
+        Returns:
+            bool: True if a zombie door is needed, False otherwise.
+        """
+        # if explored all inside/outside while inside/outside return false
+        if self.__player_is_outside and self.__outside_tile_order_index >= len(self.__outside_tile_order):
+            return False
+        elif not self.__player_is_outside and self.__inside_tile_order_index >= len(self.__inside_tile_order):
+            return False
+
+        # loop through all displayed tiles
+        for position, tile in self.__display_tiles.items():
+            if self.__player_is_outside != tile.is_outside():
+                continue  # skip if player does not match tile area
+
+            # check if doors open to blank tiles
+            for door_direction in tile.get_door_directions():
+                pos_result = self.__calculate_position(position, door_direction)
+                if pos_result.is_fail():
+                    continue  # skip if door opens to position that is out of bounds
+
+                # check where door opens to
+                if self.__display_tiles.get(pos_result.get_data()) is None:
+                    if tile.is_exit() and door_direction == tile.get_rotation():
+                        continue  # skip if exit tile and transition door opens to blank tile
+
+                    return False  # if any door opens to a blank tile then no need for zombie door
+        return True  # if NO doors open to blank tiles then a zombie door is needed
 
     def get_tile_data(self) -> list[TileData]:
         """Gets the data for all the tiles being displayed.
