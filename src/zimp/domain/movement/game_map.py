@@ -89,11 +89,19 @@ class GameMap:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
         if self.__player_is_outside:
+            # error if explored all outside tiles
+            if self.__outside_tile_order_index >= len(self.__outside_tile_order):
+                return ErrorCode.DEPLETED_OUTSIDE_TILES
+
             # gets next outside tile if player is outside
             index = self.__outside_tile_order[self.__outside_tile_order_index]
             new_tile = self.__outside_tile_details.get(index)
             self.__outside_tile_order_index += 1
         else:
+            # error if explored all inside tiles
+            if self.__inside_tile_order_index >= len(self.__inside_tile_order):
+                return ErrorCode.DEPLETED_INSIDE_TILES
+
             # gets next inside tile if player is inside
             index = self.__inside_tile_order[self.__inside_tile_order_index]
             new_tile = self.__inside_tile_details.get(index)
@@ -326,6 +334,12 @@ class GameMap:
         Returns:
               Result: Success - Needed GameMode or None. | Fail - ErrorCode.
         """
+        # return error if parameter is invalid
+        if mode not in (GameMode.MOVE, GameMode.COMBAT, GameMode.ZOMBIE_DOOR):
+            return Result.fail(ErrorCode.INVALID_VALUE_GAME_MODE)
+        if direction not in Direction:
+            return Result.fail(ErrorCode.INVALID_VALUE_DIRECTION)
+
         # get tile player is currently on
         current_tile = self.__display_tiles.get(self.__player_position)
         if current_tile is None:
@@ -376,6 +390,16 @@ class GameMap:
                     return Result.fail(ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE)  # cant make door to known tile
 
     def rotate_placement_tile(self, mode: GameMode) -> ErrorCode | None:
+        """Rotates the currently placeable tile.
+        Args:
+            mode (GameMode): Current game mode.
+        Returns:
+            ErrorCode: If GameMode is not PLACEMENT or the tile is locked. | None: If nothing went wrong.
+        """
+        # return error if not in placement mode
+        if mode != GameMode.PLACEMENT:
+            return ErrorCode.INVALID_MODE_ROTATE_TILE
+
         # cannot rotate if locked
         if self.__last_added_tile.is_locked():
             return ErrorCode.INVALID_ACTION_ROTATE_LOCKED_TILE
@@ -386,6 +410,16 @@ class GameMap:
         return None
 
     def lock_placement_tile(self, mode: GameMode) -> ErrorCode | None:
+        """Locks the placement of the currently placeable tile.
+        Args:
+            mode (GameMode): Current game mode.
+        Returns:
+            ErrorCode: If GameMode is not PLACEMENT. | None: If nothing went wrong.
+        """
+        # return error if not in placement mode
+        if mode != GameMode.PLACEMENT:
+            return ErrorCode.INVALID_MODE_LOCK_TILE
+
         # lock tile placement and move player
         self.__last_added_tile.lock()
         self.__player_position = self.__last_move_destination_position
@@ -435,6 +469,10 @@ class GameMap:
         return data
 
     def get_player_position(self) -> tuple[int, int]:
+        """Gets the players current position.
+        Returns:
+            tuple[int, int]: The players position.
+        """
         return self.__player_position
 
     def get_zombie_count(self) -> int:
@@ -445,7 +483,8 @@ class GameMap:
         return self.__display_tiles[self.__player_position].get_zombie_count()
 
     def defeat_zombies(self) -> None:
-        pass
+        """Defeats the zombies on the tile the player is currently on."""
+        self.__display_tiles[self.__player_position].defeat_zombies()
 
     def add_zombies(self, number_of_zombies: int) -> None:
         """Adds zombies to the tile the player is currently on.
@@ -454,10 +493,18 @@ class GameMap:
         """
         self.__display_tiles[self.__player_position].add_zombies(number_of_zombies)
 
-    def get_tile_effect(self) -> TileEffect:
-        pass
+    def get_tile_effect(self) -> TileEffect | None:
+        """Gets the tile effect of the tile the player is currently on.
+        Returns:
+            TileEffect: The tile effect of the tile. | None: If there is no tile effect.
+        """
+        return self.__display_tiles[self.__player_position].get_tile_effect()
 
     def get_map_dimensions(self) -> tuple[int, int]:
+        """Gets the map dimensions of the game map.
+        Returns:
+            tuple[int, int]: The map dimensions.
+        """
         return self.__map_dimensions
 
     def reset(self, map_dimensions: tuple[int, int] | None = None, starting_position: tuple[int, int] | None = None,

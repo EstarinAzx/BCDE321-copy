@@ -3,6 +3,7 @@ import pytest
 from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.movement.game_map import GameMap
 from zimp.domain.movement.direction import Direction
+from zimp.domain.movement.tile_effect import TileEffect
 from zimp.support.fake_game_mode import GameMode
 
 
@@ -173,7 +174,7 @@ def test_move_player_when_given_move_mode_valid_move_to_empty_tile_returns_place
     assert move_result.get_data() == placement_game_mode
 
 
-def test_move_player_when_given_move_mode_valid_move_to_known_tile_moves_player():
+def test_move_player_when_given_move_mode_valid_move_to_known_tile_returns_none_and_moves_player():
     # Arrange
     movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=42)
     move_game_mode = GameMode.MOVE
@@ -192,8 +193,9 @@ def test_move_player_when_given_move_mode_valid_move_to_known_tile_moves_player(
     assert movement.get_player_position() == new_player_position
 
 
-def test_move_player_when_given_combat_mode_valid_move_to_known_tile_returns_flee_mode():
+def test_move_player_when_given_combat_mode_valid_move_to_known_tile_returns_flee_mode_and_moves_player():
     # Arrange
+    new_player_position = (2, 2)
     movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=1)
     combat_game_mode = GameMode.COMBAT
     move_direction = Direction.SOUTH
@@ -207,6 +209,7 @@ def test_move_player_when_given_combat_mode_valid_move_to_known_tile_returns_fle
     # Assert
     assert move_result.is_fail() is False
     assert move_result.get_data() == flee_mode
+    assert movement.get_player_position() == new_player_position
 
 
 def test_move_player_when_given_zombie_door_mode_valid_move_to_empty_tile_creates_zombie_door_in_correct_direction():
@@ -363,7 +366,191 @@ def test_need_zombie_door_when_no_open_normal_door_and_all_outsides_explored_ret
     assert z_door_result is False
 
 
+def test_rotate_placement_tile_doors_are_rotated_and_returns_none():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=42)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    second_tile_id = 2
+    first_rotation_direction = Direction.WEST
+    second_rotation_direction = Direction.SOUTH
+
+    # Act
+    tile_data_one = movement.get_tile_data()
+    rotate_result = movement.rotate_placement_tile(GameMode.PLACEMENT)
+    tile_data_two = movement.get_tile_data()
+
+    # Assert
+    assert rotate_result is None
+    assert any(tile.id == second_tile_id and tile.rotation == first_rotation_direction for tile in tile_data_one)
+    assert any(tile.id == second_tile_id and tile.rotation == second_rotation_direction for tile in tile_data_two)
+
+
+def test_rotate_placement_tile_rotated_exit_door_transition_is_not_blocked():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 0), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    second_tile_id = 3
+    first_rotation_direction = Direction.NORTH
+    second_rotation_direction = Direction.EAST
+    third_rotation_direction = Direction.NORTH
+
+    # Act
+    tile_data_one = movement.get_tile_data()
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    tile_data_two = movement.get_tile_data()
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    tile_data_three = movement.get_tile_data()
+
+    # Assert
+    assert any(tile.id == second_tile_id and tile.rotation == first_rotation_direction for tile in tile_data_one)
+    assert any(tile.id == second_tile_id and tile.rotation == second_rotation_direction for tile in tile_data_two)
+    assert any(tile.id == second_tile_id and tile.rotation == third_rotation_direction for tile in tile_data_three)
+
+
+def test_rotate_placement_tile_rotated_entry_door_transition_aligns_with_exit():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.WEST)
+    third_tile_id = 11
+    rotation_direction = Direction.EAST
+
+    # Act
+    tile_data_one = movement.get_tile_data()
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    tile_data_two = movement.get_tile_data()
+
+    # Assert
+    assert any(tile.id == third_tile_id and tile.rotation == rotation_direction for tile in tile_data_one)
+    assert any(tile.id == third_tile_id and tile.rotation == rotation_direction for tile in tile_data_two)
+
+
+def test_lock_placement_tile_is_locked_and_returns_none():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    second_tile_id = 3
+
+    # Act
+    lock_result = movement.lock_placement_tile(GameMode.PLACEMENT)
+    tile_data = movement.get_tile_data()
+
+    # Assert
+    assert lock_result is None
+    assert any(tile.id == second_tile_id and tile.is_locked for tile in tile_data)
+
+
+def test_lock_placement_tile_player_is_moved():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    player_position = (3, 1)
+
+    # Act
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    result = movement.get_player_position()
+
+    # Assert
+    assert result == player_position
+
+
+def test_get_tile_effect_returns_current_tile_effect():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=2)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    tile_effect = TileEffect.FIND_TOTEM
+
+    # Act
+    effect_result = movement.get_tile_effect()
+
+    # Assert
+    assert effect_result == tile_effect
+
+
+def test_get_tile_effect_returns_none_if_no_effect():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=42)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+
+    # Act
+    effect_result = movement.get_tile_effect()
+
+    # Assert
+    assert effect_result is None
+
+
+def test_defeat_zombies_removes_all_zombies_only_on_current_tile():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=42)
+    first_tile_z_count = 4
+    second_tile_z_count = 0
+    move_direction = Direction.SOUTH
+    movement.add_zombies(first_tile_z_count)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.add_zombies(first_tile_z_count)
+
+    # Act
+    movement.defeat_zombies()
+    second_tile_z_result = movement.get_zombie_count()
+    movement.move_player(GameMode.MOVE, move_direction)
+    first_tile_z_result = movement.get_zombie_count()
+
+    # Assert
+    assert first_tile_z_result == first_tile_z_count
+    assert second_tile_z_result == second_tile_z_count
+
+
 # ========================== Bad Day ========================== #
+
+
+@pytest.mark.parametrize("game_mode", [GameMode.PLACEMENT, GameMode.FLED, "PLAYING", -1000, ()])
+def test_move_player_invalid_game_mode_returns_game_mode_error(game_mode):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2))
+    move_direction = Direction.NORTH
+    game_mode_error = ErrorCode.INVALID_VALUE_GAME_MODE
+
+    # Act
+    move_result = movement.move_player(game_mode, move_direction)
+
+    # Assert
+    assert move_result.is_fail() is True
+    assert move_result.get_error_code() == game_mode_error
+
+
+@pytest.mark.parametrize("direction", ["UP", -1000, ()])
+def test_move_player_invalid_direction_returns_direction_error(direction):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2))
+    game_mode = GameMode.MOVE
+    direction_error = ErrorCode.INVALID_VALUE_DIRECTION
+
+    # Act
+    move_result = movement.move_player(game_mode, direction)
+
+    # Assert
+    assert move_result.is_fail() is True
+    assert move_result.get_error_code() == direction_error
+
+
+@pytest.mark.parametrize("mode", [GameMode.MOVE, GameMode.COMBAT, GameMode.ZOMBIE_DOOR])
+def test_move_player_when_given_all_valid_modes_invalid_move_out_of_bounds_returns_out_of_bounds_error(mode):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(0, 2))
+    move_direction = Direction.NORTH
+    out_of_bounds_error = ErrorCode.INVALID_MOVE_OUT_OF_BOUNDS
+
+    # Act
+    move_result = movement.move_player(mode, move_direction)
+
+    # Assert
+    assert move_result.is_fail() is True
+    assert move_result.get_error_code() == out_of_bounds_error
 
 
 def test_move_player_when_given_move_mode_invalid_move_to_empty_tile_with_no_door_returns_door_error():
@@ -424,6 +611,82 @@ def test_move_player_when_given_move_mode_invalid_move_to_cross_area_tile_return
     # Assert
     assert move_result.is_fail() is True
     assert move_result.get_error_code() == cross_area_error
+
+
+def test_move_player_when_given_move_mode_valid_move_when_all_inside_explored_returns_depleted_inside_error():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 0), randomizer_seed=4)
+    move_game_mode = GameMode.MOVE
+    move_direction = Direction.EAST
+    depleted_inside_error = ErrorCode.DEPLETED_INSIDE_TILES
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.WEST)
+    movement.move_player(GameMode.MOVE, Direction.WEST)
+    movement.move_player(GameMode.MOVE, Direction.SOUTH)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.WEST)
+    movement.move_player(GameMode.MOVE, Direction.SOUTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+
+    # Act
+    move_result = movement.move_player(move_game_mode, move_direction)
+
+    # Assert
+    assert move_result.is_fail() is True
+    assert move_result.get_error_code() == depleted_inside_error
+
+
+def test_move_player_when_given_move_mode_valid_move_when_all_outside_explored_returns_depleted_outside_error():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 0), randomizer_seed=1)
+    move_game_mode = GameMode.MOVE
+    move_direction = Direction.NORTH
+    depleted_outside_error = ErrorCode.DEPLETED_OUTSIDE_TILES
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.SOUTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.SOUTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+
+    # Act
+    move_result = movement.move_player(move_game_mode, move_direction)
+
+    # Assert
+    assert move_result.is_fail() is True
+    assert move_result.get_error_code() == depleted_outside_error
 
 
 def test_move_player_when_given_combat_mode_invalid_move_to_empty_tile_returns_flee_error():
@@ -503,3 +766,46 @@ def test_move_player_when_given_zombie_door_mode_invalid_move_to_know_tile_retur
     # Assert
     assert move_result.is_fail() is True
     assert move_result.get_error_code() == zombie_door_error
+
+
+@pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, ()])
+def test_rotate_placement_tile_invalid_mode_returns_mode_error(game_mode):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    mode_error = ErrorCode.INVALID_MODE_ROTATE_TILE
+
+    # Act
+    rotate_result = movement.rotate_placement_tile(game_mode)
+
+    # Assert
+    assert rotate_result == mode_error
+
+
+def test_rotate_placement_tile_rotate_locked_tile_returns_rotate_tile_error():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    rotate_tile_error = ErrorCode.INVALID_ACTION_ROTATE_LOCKED_TILE
+    placement_mode = GameMode.PLACEMENT
+
+    # Act
+    rotate_result = movement.rotate_placement_tile(placement_mode)
+
+    # Assert
+    assert rotate_result == rotate_tile_error
+
+
+@pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, ()])
+def test_lock_placement_tile_invalid_mode_returns_mode_error(game_mode):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    mode_error = ErrorCode.INVALID_MODE_LOCK_TILE
+
+    # Act
+    rotate_result = movement.lock_placement_tile(game_mode)
+
+    # Assert
+    assert rotate_result == mode_error

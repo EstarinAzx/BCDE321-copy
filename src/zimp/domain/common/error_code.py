@@ -14,7 +14,9 @@ class ErrorCode(Enum):
     INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE = auto()
     INVALID_MODE_MOVEMENT = auto()
     INVALID_MODE_ROTATE_TILE = auto()
-    INVALID_MODE_PLACE_TILE = auto()
+    INVALID_MODE_LOCK_TILE = auto()
+    INVALID_VALUE_GAME_MODE = auto()
+    INVALID_VALUE_DIRECTION = auto()
 
     """GENERAL ERRORS"""
     FATAL_ERROR = auto()
