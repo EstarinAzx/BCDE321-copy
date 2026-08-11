@@ -1,0 +1,1 @@
+"""Shared state to be used by the various modules"""

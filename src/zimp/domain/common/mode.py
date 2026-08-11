@@ -10,10 +10,3 @@ class Mode(Enum):
     FOUND_ITEM = auto(),
     WON = auto(),
     LOST = auto(),
-
-class EndTurnEffects(Enum):
-    NONE = auto(),
-    HP = auto(),
-    ITEM = auto(),
-    FIND_TOTEM = auto(),
-    BURY_TOTEM = auto(),
