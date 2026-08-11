@@ -103,55 +103,45 @@ def test_item_card_changes_mode_to_search(handler):
 
 def test_resolve_attack_changes_hp(handler):
     state = CurrentState()
-    tile = Tile()
-    tile.set_zombies(3)
 
-    handler.resolve_attack(state, tile)
+    handler.resolve_attack(state, 3)
 
     assert state.get_hp() == 4
 
 def test_resolve_attack_with_no_zombies_does_not_damage_player(handler):
     state = CurrentState()
-    tile = Tile()
 
-    handler.resolve_attack(state, tile)
+    handler.resolve_attack(state, 0)
 
     assert state.get_hp() == 5
 
 def test_resolve_attack_when_player_is_stronger_than_zombies(handler):
     state = CurrentState()
     state.set_attack(10)
-    tile = Tile()
-    tile.set_zombies(3)
 
-    handler.resolve_attack(state, tile)
+    handler.resolve_attack(state, 3)
 
     assert state.get_hp() == 5
 
 def test_resolve_flee_with_zombies_changes_hp(handler):
     state = CurrentState()
-    tile = Tile()
-    tile.set_zombies(3)
 
-    handler.resolve_flee(state, tile)
+    handler.resolve_flee(state, 3)
 
     assert state.get_hp() == 4
 
 def test_resolve_flee_multiple_times(handler):
     state = CurrentState()
-    tile = Tile()
-    tile.set_zombies(3)
 
-    handler.resolve_flee(state, tile)
-    handler.resolve_flee(state, tile)
+    handler.resolve_flee(state, 3)
+    handler.resolve_flee(state, 3)
 
     assert state.get_hp() == 3
 
 def test_resolve_flee_with_no_zombies_doesnt_change_hp(handler):
     state = CurrentState()
-    tile = Tile()
 
-    handler.resolve_flee(state, tile)
+    handler.resolve_flee(state, 0)
 
     assert state.get_hp() == 5
 

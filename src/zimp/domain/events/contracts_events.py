@@ -13,9 +13,9 @@ class EventsContract(Protocol):
         """Return the number of remaining dev cards in the deck"""
     def draw_and_resolve_card(self, state: CurrentState, tile: Tile) -> CardEffect:
         """Draw and resolve a new card"""
-    def resolve_attack(self, state: CurrentState, tile: Tile) -> None:
+    def resolve_attack(self, state: CurrentState, num_zombies: int) -> None:
         """Conclude combat with zombies in the current room"""
-    def resolve_flee(self, state: CurrentState, tile: Tile) -> None:
+    def resolve_flee(self, state: CurrentState, num_zombies: int) -> None:
         """Flee zombies in the current room"""
     def search_for_item(self, state: CurrentState) -> int | None:
         """After an event has found an item, draw the next card to see what it is and return its id."""

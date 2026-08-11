@@ -62,16 +62,14 @@ class EventHandler:
 
         return current_effect
 
-    def resolve_attack(self, state: CurrentState, tile: Tile) -> None:
+    def resolve_attack(self, state: CurrentState, num_zombies: int) -> None:
         """Conclude combat with zombies in the current room"""
-        damage = max(0, tile.get_zombies() - state.get_attack() - self.__COMBAT_BONUS) # Contract assumption
+        damage = max(0, num_zombies - state.get_attack() - self.__COMBAT_BONUS) # Contract assumption
         state.change_hp(-damage) # Contract assumption
 
-        tile.kill_zombies() # Contract assumption
-
-    def resolve_flee(self, state: CurrentState, tile: Tile) -> None:
+    def resolve_flee(self, state: CurrentState, num_zombies: int) -> None:
         """Flee zombies in the current room"""
-        if tile.get_zombies() == 0:
+        if num_zombies == 0:
             return
 
         state.change_hp(self.__FLEE_DAMAGE) # Contract assumption
