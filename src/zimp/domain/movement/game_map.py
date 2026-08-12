@@ -1,4 +1,5 @@
 import random
+from typing import Final
 
 from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.result import Result
@@ -6,6 +7,8 @@ from zimp.domain.movement.direction import Direction
 from zimp.domain.movement.tile import Tile
 from zimp.domain.movement.tile_data import TileData
 from zimp.domain.movement.tile_effect import TileEffect
+from zimp.domain.movement.validators import is_valid_point_type, is_valid_seed, is_valid_point_within_range, \
+    validate_map_and_position, is_move_valid
 from zimp.support.fake_game_mode import GameMode
 
 
@@ -17,28 +20,33 @@ class GameMap:
         randomizer_seed (int): Seed used to randomly order tiles. Defaults to None (random seed).
     """
 
-    def __init__(self, map_dimensions: tuple[int, int] = (5, 5), starting_position: tuple[int, int] = (2, 4),
+    # class constants
+    __DEFAULT_MAP_DIMENSIONS: Final[tuple[int, int]] = (5, 5)
+    __DEFAULT_START_POSITION: Final[tuple[int, int]] = (2, 4)
+    __DEFAULT_MINIMUM_MAP_DIMENSIONS: Final[tuple[int, int]] = (4, 4)
+    __DEFAULT_MINIMUM_START_POSITION: Final[tuple[int, int]] = (0, 0)
+
+    def __init__(self, map_dimensions: tuple[int, int] = __DEFAULT_MAP_DIMENSIONS,
+                 starting_position: tuple[int, int] = __DEFAULT_START_POSITION,
                  randomizer_seed: int | None = None) -> None:
         # map dimension type check
-        if (not isinstance(map_dimensions, tuple) or len(map_dimensions) != 2
-                or not isinstance(map_dimensions[0], int) or not isinstance(map_dimensions[1], int)):
+        if not is_valid_point_type(map_dimensions):
             raise TypeError("Invalid map dimensions type, must be a tuple of two integers")
         # map dimension value check
-        if map_dimensions[0] <= 1 or map_dimensions[1] <= 1:
-            raise ValueError("Map dimensions must be greater than 1x1")
+        if not is_valid_point_within_range(map_dimensions, self.__DEFAULT_MINIMUM_MAP_DIMENSIONS):
+            raise ValueError(
+                f"Map dimensions must be greater than {self.__DEFAULT_MINIMUM_MAP_DIMENSIONS[0]}x{self.__DEFAULT_MINIMUM_MAP_DIMENSIONS[1]}")
 
         # starting position type check
-        if (not isinstance(starting_position, tuple) or len(starting_position) != 2
-                or not isinstance(starting_position[0], int) or not isinstance(starting_position[1], int)):
+        if not is_valid_point_type(starting_position):
             raise TypeError("Invalid starting position type, must be a tuple of two integers")
         # starting position value check
-        if starting_position[0] < 0 or starting_position[1] < 0 or starting_position[0] >= map_dimensions[0] or \
-                starting_position[1] >= map_dimensions[1]:
+        if not is_valid_point_within_range(starting_position, self.__DEFAULT_MINIMUM_START_POSITION, map_dimensions):
             raise ValueError("Starting position must be within the map dimensions")
 
         # seed value check
-        if randomizer_seed is not None and not isinstance(randomizer_seed, int):
-            raise ValueError("Randomizer seed must be an integer")
+        if not is_valid_seed(randomizer_seed):
+            raise TypeError("Randomizer seed must be an integer")
 
         self.__map_dimensions: tuple[int, int] = map_dimensions
         self.__starting_position: tuple[int, int] = starting_position
@@ -107,6 +115,20 @@ class GameMap:
         self.__inside_tile_order = inside_random_order
         self.__outside_tile_order = outside_random_order
 
+    def __is_outside_tiles_depleted(self) -> bool:
+        """Checks if player has explored all outside tiles while outside.
+        Returns:
+            bool: True if player has explored all outside tiles, False otherwise.
+        """
+        return self.__player_is_outside and self.__outside_tile_order_index >= len(self.__outside_tile_order)
+
+    def __is_inside_tiles_depleted(self) -> bool:
+        """Checks if player has explored all inside tiles while inside.
+        Returns:
+            bool: True if player has explored all inside tiles, False otherwise.
+        """
+        return not self.__player_is_outside and self.__inside_tile_order_index >= len(self.__inside_tile_order)
+
     def __add_tile(self, position: tuple[int, int]) -> ErrorCode | None:
         """Adds next tile to the displayed tiles.
         Args:
@@ -114,20 +136,18 @@ class GameMap:
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        if self.__player_is_outside:
-            # error if explored all outside tiles
-            if self.__outside_tile_order_index >= len(self.__outside_tile_order):
-                return ErrorCode.DEPLETED_OUTSIDE_TILES
+        # checks if all inside/outside tiles have been explored
+        if self.__is_outside_tiles_depleted():
+            return ErrorCode.DEPLETED_OUTSIDE_TILES
+        if self.__is_inside_tiles_depleted():
+            return ErrorCode.DEPLETED_INSIDE_TILES
 
+        if self.__player_is_outside:
             # gets next outside tile if player is outside
             index = self.__outside_tile_order[self.__outside_tile_order_index]
             new_tile = self.__outside_tile_details.get(index)
             self.__outside_tile_order_index += 1
         else:
-            # error if explored all inside tiles
-            if self.__inside_tile_order_index >= len(self.__inside_tile_order):
-                return ErrorCode.DEPLETED_INSIDE_TILES
-
             # gets next inside tile if player is inside
             index = self.__inside_tile_order[self.__inside_tile_order_index]
             new_tile = self.__inside_tile_details.get(index)
@@ -141,19 +161,6 @@ class GameMap:
         self.__display_tiles[position] = new_tile
         self.__last_added_tile = new_tile
         return None
-
-    def __is_position_valid(self, position: tuple[int, int]) -> bool:
-        """Checks if the given position is within the maps dimensions.
-        Args:
-            position (tuple[int, int]): Position to check.
-        Returns:
-            bool: True if the given position is within the maps dimensions, False if not.
-        """
-        if (position[0] < 0 or position[1] < 0 or position[0] >= self.__map_dimensions[0]
-                or position[1] >= self.__map_dimensions[1]):
-            return False  # position is invalid
-        else:
-            return True  # position is valid
 
     def __update_player_area(self, move_direction: Direction, current_tile: Tile) -> None:
         """Updates player area if transitioning between inside/outside areas through the entry/exit doors.
@@ -245,7 +252,7 @@ class GameMap:
         self.__last_move_direction = move_direction
         self.__last_move_destination_position = destination_position
         self.__calculate_placement_tile_rotation()
-        return None
+        return None  # success
 
     def __calculate_position(self, position: tuple[int, int], direction: Direction) -> Result:
         """Calculates the new position from the given position to the given direction.
@@ -268,32 +275,10 @@ class GameMap:
                 new_pos = (position[0] + 1, position[1])
 
         # validates new position
-        if not self.__is_position_valid(new_pos):
+        if not is_valid_point_within_range(new_pos, self.__DEFAULT_MINIMUM_START_POSITION, self.__map_dimensions):
             return Result.fail(ErrorCode.INVALID_MOVE_OUT_OF_BOUNDS)
 
         return Result.success(new_pos)
-
-    def __is_move_valid(self, current_tile: Tile, destination_tile: Tile, direction: Direction) -> ErrorCode | None:
-        """Checks both tiles have aligned doors, the move is through the transition doors or both tiles are inside/outside.
-        Args:
-            current_tile (Tile): Current tile the player is on.
-            destination_tile (Tile): Destination tile the player is trying to move to.
-            direction (Direction): Direction from the current tile to the destination tile.
-        Returns:
-            ErrorCode: If something went wrong. | None: If nothing went wrong.
-        """
-        doors_align = (current_tile.has_door_in_direction(direction)
-                       and destination_tile.has_door_in_opposite_direction(direction))
-        is_move_between_connection = ((current_tile.is_exit() and destination_tile.is_entry())
-                                      or (destination_tile.is_exit() and current_tile.is_entry()))
-        is_same_area = current_tile.is_outside() == destination_tile.is_outside()
-
-        if not doors_align:
-            return ErrorCode.INVALID_MOVE_NO_DOOR
-        elif not (is_move_between_connection or is_same_area):
-            return ErrorCode.INVALID_MOVE_ACROSS_AREAS
-        else:
-            return None  # valid move
 
     def __create_zombie_door(self, direction: Direction) -> None:
         """Creates zombie door on the current tile and adds zombies.
@@ -333,7 +318,7 @@ class GameMap:
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        move_error = self.__is_move_valid(current_tile, destination_tile, direction)
+        move_error = is_move_valid(current_tile, destination_tile, direction)
         if move_error is None:
             # valid move updates player
             self.__update_player_area(direction, current_tile)
@@ -360,7 +345,7 @@ class GameMap:
         Returns:
               Result: Success - Needed GameMode or None. | Fail - ErrorCode.
         """
-        # return error if parameter is invalid
+        # return error if game mode or direction is invalid
         if mode not in (GameMode.MOVE, GameMode.COMBAT, GameMode.ZOMBIE_DOOR):
             return Result.fail(ErrorCode.INVALID_VALUE_GAME_MODE)
         if direction not in Direction:
@@ -433,7 +418,7 @@ class GameMap:
         # rotate tile and calculate next valid rotation
         self.__last_added_tile.rotate(Direction((self.__last_added_tile.get_rotation().value + 90) % 360))
         self.__calculate_placement_tile_rotation()
-        return None
+        return None  # success
 
     def lock_placement_tile(self, mode: GameMode) -> ErrorCode | None:
         """Locks the placement of the currently placeable tile.
@@ -449,6 +434,7 @@ class GameMap:
         # lock tile placement and move player
         self.__last_added_tile.lock()
         self.__player_position = self.__last_move_destination_position
+        return None  # success
 
     def need_zombie_door(self) -> bool:
         """Checks if zombie door is needed.
@@ -459,10 +445,10 @@ class GameMap:
         Returns:
             bool: True if a zombie door is needed, False otherwise.
         """
-        # if explored all inside/outside while inside/outside return false
-        if self.__player_is_outside and self.__outside_tile_order_index >= len(self.__outside_tile_order):
+        # check if all inside/outside tiles have been explored
+        if self.__is_outside_tiles_depleted():
             return False
-        elif not self.__player_is_outside and self.__inside_tile_order_index >= len(self.__inside_tile_order):
+        if self.__is_inside_tiles_depleted():
             return False
 
         # loop through all displayed tiles
@@ -545,40 +531,15 @@ class GameMap:
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        if map_dimensions is not None:
-            # map dimension type check
-            if (not isinstance(map_dimensions, tuple) or len(map_dimensions) != 2
-                    or not isinstance(map_dimensions[0], int) or not isinstance(map_dimensions[1], int)):
-                return ErrorCode.INVALID_VALUE_MAP_DIMENSION
-            # map dimension value check
-            if map_dimensions[0] <= 1 or map_dimensions[1] <= 1:
-                return ErrorCode.INVALID_VALUE_MAP_DIMENSION
+        validation_error = validate_map_and_position(self.__map_dimensions, self.__player_position,
+                                                     self.__DEFAULT_MINIMUM_MAP_DIMENSIONS,
+                                                     self.__DEFAULT_MINIMUM_START_POSITION,
+                                                     map_dimensions, starting_position)
+        if validation_error is not None:
+            return validation_error
 
-        if starting_position is not None:
-            # start position type check
-            if (not isinstance(starting_position, tuple) or len(starting_position) != 2
-                    or not isinstance(starting_position[0], int) or not isinstance(starting_position[1], int)):
-                return ErrorCode.INVALID_VALUE_STARTING_POSITION
-            # start position value check
-            if starting_position[0] < 0 or starting_position[1] < 0:
-                return ErrorCode.INVALID_VALUE_STARTING_POSITION
-
-        # seed value check
-        if randomizer_seed is not None and not isinstance(randomizer_seed, int):
-            return ErrorCode.INVALID_VALUE_RANDOMIZER_SEED
-
-        if map_dimensions is not None and starting_position is None:
-            # check map dimensions still work with current start pos
-            if self.__starting_position[0] >= map_dimensions[0] or self.__starting_position[1] >= map_dimensions[1]:
-                return ErrorCode.INVALID_VALUE_MAP_DIMENSION
-        elif map_dimensions is None and starting_position is not None:
-            # check starting position fits with current map dim
-            if starting_position[0] >= self.__map_dimensions[0] or starting_position[1] >= self.__map_dimensions[1]:
-                return ErrorCode.INVALID_VALUE_STARTING_POSITION
-        elif map_dimensions is not None and starting_position is not None:
-            # new start pos needs to fit in new map dim
-            if starting_position[0] >= map_dimensions[0] or starting_position[1] >= map_dimensions[1]:
-                return ErrorCode.INVALID_VALUE_STARTING_POSITION
+        if not is_valid_seed(randomizer_seed):
+            return ErrorCode.INVALID_TYPE_RANDOMIZER_SEED
 
         if map_dimensions is not None:
             # set map dimensions

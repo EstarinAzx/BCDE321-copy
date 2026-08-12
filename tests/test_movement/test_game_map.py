@@ -357,7 +357,7 @@ def test_need_zombie_door_when_no_open_normal_door_and_all_insides_explored_retu
 
 def test_need_zombie_door_when_no_open_normal_door_and_all_outsides_explored_returns_false() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(3, 5), starting_position=(0, 4), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(0, 4), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     movement.lock_placement_tile(GameMode.PLACEMENT)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
@@ -390,7 +390,7 @@ def test_need_zombie_door_when_no_open_normal_door_and_all_outsides_explored_ret
 
 def test_rotate_placement_tile_doors_are_rotated_and_returns_none() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=42)
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 1), randomizer_seed=42)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     second_tile_id = 2
     first_rotation_direction = Direction.WEST
@@ -409,7 +409,7 @@ def test_rotate_placement_tile_doors_are_rotated_and_returns_none() -> None:
 
 def test_rotate_placement_tile_rotated_exit_door_transition_is_not_blocked() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(3, 5), starting_position=(0, 4), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(0, 4), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     second_tile_id = 3
     first_rotation_direction = Direction.NORTH
@@ -431,7 +431,7 @@ def test_rotate_placement_tile_rotated_exit_door_transition_is_not_blocked() -> 
 
 def test_rotate_placement_tile_rotated_entry_door_transition_aligns_with_exit() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 1), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     movement.rotate_placement_tile(GameMode.PLACEMENT)
     movement.lock_placement_tile(GameMode.PLACEMENT)
@@ -451,7 +451,7 @@ def test_rotate_placement_tile_rotated_entry_door_transition_aligns_with_exit() 
 
 def test_lock_placement_tile_is_locked_and_returns_none() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 1), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     second_tile_id = 3
 
@@ -466,7 +466,7 @@ def test_lock_placement_tile_is_locked_and_returns_none() -> None:
 
 def test_lock_placement_tile_player_is_moved() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(3, 5), starting_position=(1, 4), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(1, 4), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     player_position = (1, 3)
 
@@ -480,7 +480,7 @@ def test_lock_placement_tile_player_is_moved() -> None:
 
 def test_get_tile_effect_returns_current_tile_effect() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=2)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=2)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     movement.lock_placement_tile(GameMode.PLACEMENT)
     tile_effect = TileEffect.FIND_TOTEM
@@ -494,7 +494,7 @@ def test_get_tile_effect_returns_current_tile_effect() -> None:
 
 def test_get_tile_effect_returns_none_if_no_effect() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=42)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=42)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     movement.lock_placement_tile(GameMode.PLACEMENT)
 
@@ -507,7 +507,7 @@ def test_get_tile_effect_returns_none_if_no_effect() -> None:
 
 def test_defeat_zombies_removes_all_zombies_only_on_current_tile() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=42)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=42)
     first_tile_z_count = 4
     second_tile_z_count = 0
     move_direction = Direction.SOUTH
@@ -675,7 +675,7 @@ def test_move_player_when_given_move_mode_valid_move_when_all_inside_explored_re
 
 def test_move_player_when_given_move_mode_valid_move_when_all_outside_explored_returns_depleted_outside_error() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(3, 5), starting_position=(0, 4), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(4, 5), starting_position=(0, 4), randomizer_seed=1)
     move_game_mode = GameMode.MOVE
     move_direction = Direction.NORTH
     depleted_outside_error = ErrorCode.DEPLETED_OUTSIDE_TILES
@@ -793,7 +793,7 @@ def test_move_player_when_given_zombie_door_mode_invalid_move_to_know_tile_retur
 @pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, (), None])
 def test_rotate_placement_tile_when_given_invalid_mode_returns_mode_error(game_mode):
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     mode_error = ErrorCode.INVALID_MODE_ROTATE_TILE
 
@@ -806,7 +806,7 @@ def test_rotate_placement_tile_when_given_invalid_mode_returns_mode_error(game_m
 
 def test_rotate_placement_tile_rotating_a_locked_tile_returns_rotate_tile_error() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     movement.lock_placement_tile(GameMode.PLACEMENT)
     rotate_tile_error = ErrorCode.INVALID_ACTION_ROTATE_LOCKED_TILE
@@ -822,7 +822,7 @@ def test_rotate_placement_tile_rotating_a_locked_tile_returns_rotate_tile_error(
 @pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, (), None])
 def test_lock_placement_tile_when_given_invalid_mode_returns_mode_error(game_mode) -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=1)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     mode_error = ErrorCode.INVALID_MODE_LOCK_TILE
 
@@ -849,7 +849,7 @@ def test_init_when_given_invalid_map_dimensions_value_raises_value_error(map_dim
     starting_position = (2, 2)
 
     # Act & Assert
-    with pytest.raises(ValueError, match="Map dimensions must be greater than 1x1"):
+    with pytest.raises(ValueError, match="Map dimensions must be greater than 4x4"):
         GameMap(map_dimensions=map_dimensions, starting_position=starting_position)
 
 
@@ -880,29 +880,29 @@ def test_init_when_given_invalid_randomizer_seed_value_raises_value_error() -> N
     invalid_seed = "42"
 
     # Act & Assert
-    with pytest.raises(ValueError, match="Randomizer seed must be an integer"):
+    with pytest.raises(TypeError, match="Randomizer seed must be an integer"):
         GameMap(map_dimensions=map_dimensions, starting_position=starting_position, randomizer_seed=invalid_seed)
 
 
-@pytest.mark.parametrize("map_dimensions",
-                         [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}, (0, 0), (-1, 3), (5, -1), (1, 1)])
-def test_reset_when_given_invalid_map_dimensions_returns_map_dimensions_error(map_dimensions: tuple[int, int]) -> None:
-    # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
-    map_dimensions_error = ErrorCode.INVALID_VALUE_MAP_DIMENSION
-
-    # Act
-    result = movement.reset(map_dimensions=map_dimensions)
-
-    # Assert
-    assert result == map_dimensions_error
-
-
-@pytest.mark.parametrize("map_dimensions", [(2, 2), (2, 4), (4, 2), (3, 3)])
-def test_reset_when_given_invalid_map_dimensions_smaller_than_existing_starting_position_returns_map_dimensions_error(
+@pytest.mark.parametrize("map_dimensions", [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}])
+def test_reset_when_given_invalid_map_dimensions_returns_map_dimensions_type_error(
         map_dimensions: tuple[int, int]) -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 5), starting_position=(3, 3), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=1)
+    map_dimensions_error = ErrorCode.INVALID_TYPE_MAP_DIMENSION
+
+    # Act
+    result = movement.reset(map_dimensions=map_dimensions)
+
+    # Assert
+    assert result == map_dimensions_error
+
+
+@pytest.mark.parametrize("map_dimensions", [(0, 0), (-1, 3), (5, -1), (3, 4)])
+def test_reset_when_given_invalid_map_dimensions_returns_map_dimensions_value_error(
+        map_dimensions: tuple[int, int]) -> None:
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(2, 1), randomizer_seed=1)
     map_dimensions_error = ErrorCode.INVALID_VALUE_MAP_DIMENSION
 
     # Act
@@ -912,9 +912,36 @@ def test_reset_when_given_invalid_map_dimensions_smaller_than_existing_starting_
     assert result == map_dimensions_error
 
 
-@pytest.mark.parametrize("starting_position",
-                         [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}, (-1, 3), (5, -1)])
-def test_reset_when_given_invalid_starting_position_returns_starting_position_error(
+@pytest.mark.parametrize("map_dimensions", [(2, 2), (2, 4), (4, 2), (4, 4)])
+def test_reset_when_given_invalid_map_dimensions_with_existing_starting_position_returns_map_dimensions_error(
+        map_dimensions: tuple[int, int]) -> None:
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 4), randomizer_seed=1)
+    map_dimensions_error = ErrorCode.INVALID_VALUE_MAP_DIMENSION
+
+    # Act
+    result = movement.reset(map_dimensions=map_dimensions)
+
+    # Assert
+    assert result == map_dimensions_error
+
+
+@pytest.mark.parametrize("starting_position", [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}])
+def test_reset_when_given_invalid_starting_position_returns_starting_position_type_error(
+        starting_position: tuple[int, int]) -> None:
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 1), randomizer_seed=1)
+    starting_position_error = ErrorCode.INVALID_TYPE_STARTING_POSITION
+
+    # Act
+    result = movement.reset(starting_position=starting_position)
+
+    # Assert
+    assert result == starting_position_error
+
+
+@pytest.mark.parametrize("starting_position", [(-1, 3), (4, -1), (1, 5), (5, 1)])
+def test_reset_when_given_invalid_starting_position_returns_starting_position_value_error(
         starting_position: tuple[int, int]) -> None:
     # Arrange
     movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 1), randomizer_seed=1)
@@ -928,7 +955,7 @@ def test_reset_when_given_invalid_starting_position_returns_starting_position_er
 
 
 @pytest.mark.parametrize("starting_position", [(6, 6), (2, 6), (6, 2), (5, 5)])
-def test_reset_when_given_invalid_starting_position_larger_than_existing_map_dimensions_returns_starting_position_error(
+def test_reset_when_given_invalid_starting_position_with_existing_map_dimensions_returns_starting_position_error(
         starting_position: tuple[int, int]) -> None:
     # Arrange
     movement = GameMap(map_dimensions=(5, 5), starting_position=(3, 3), randomizer_seed=1)
@@ -941,7 +968,8 @@ def test_reset_when_given_invalid_starting_position_larger_than_existing_map_dim
     assert result == starting_position_error
 
 
-@pytest.mark.parametrize("map_dimensions, starting_position", [((3, 3), (2, 4)), ((3, 3), (4, 2)), ((3, 3), (3, 3))])
+@pytest.mark.parametrize("map_dimensions, starting_position",
+                         [((4, 4), (2, 4)), ((4, 4), (4, 2)), ((3, 3), (2, 2)), ((4, 4), (-1, -1))])
 def test_reset_when_given_invalid_starting_position_and_map_dimensions_returns_starting_position_error(
         map_dimensions: tuple[int, int], starting_position: tuple[int, int]) -> None:
     # Arrange
@@ -957,9 +985,9 @@ def test_reset_when_given_invalid_starting_position_and_map_dimensions_returns_s
 
 def test_reset_when_given_invalid_randomizer_seed_value_returns_randomizer_seed_error() -> None:
     # Arrange
-    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=1)
     invalid_seed = "42"
-    randomizer_seed_error = ErrorCode.INVALID_VALUE_RANDOMIZER_SEED
+    randomizer_seed_error = ErrorCode.INVALID_TYPE_RANDOMIZER_SEED
 
     # Act
     result = movement.reset(randomizer_seed=invalid_seed)
