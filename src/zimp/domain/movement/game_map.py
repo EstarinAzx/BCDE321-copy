@@ -12,12 +12,12 @@ from zimp.support.fake_game_mode import GameMode
 class GameMap:
     """GameMap class used to hold and calculate tile placement and player movement data.
     Args:
-        map_dimensions (tuple[int, int]): Map dimensions (height, width) (1-indexed).
-        starting_position (tuple[int, int]): Starting position (0-indexed).
-        randomizer_seed (int): seed used to randomly order tiles.
+        map_dimensions (tuple[int, int]): Map dimensions (width, height) (1-indexed). Defaults to (5, 5).
+        starting_position (tuple[int, int]): Starting position (X, Y) (0-indexed). Defaults to (2, 4).
+        randomizer_seed (int): Seed used to randomly order tiles. Defaults to None (random seed).
     """
 
-    def __init__(self, map_dimensions: tuple[int, int], starting_position: tuple[int, int],
+    def __init__(self, map_dimensions: tuple[int, int] = (5, 5), starting_position: tuple[int, int] = (2, 4),
                  randomizer_seed: int | None = None) -> None:
         # map dimension type check
         if (not isinstance(map_dimensions, tuple) or len(map_dimensions) != 2
@@ -259,13 +259,13 @@ class GameMap:
         new_pos: tuple[int, int]
         match direction:
             case Direction.NORTH:
-                new_pos = (position[0] - 1, position[1])
-            case Direction.SOUTH:
-                new_pos = (position[0] + 1, position[1])
-            case Direction.WEST:
                 new_pos = (position[0], position[1] - 1)
-            case _:
+            case Direction.SOUTH:
                 new_pos = (position[0], position[1] + 1)
+            case Direction.WEST:
+                new_pos = (position[0] - 1, position[1])
+            case _:
+                new_pos = (position[0] + 1, position[1])
 
         # validates new position
         if not self.__is_position_valid(new_pos):
@@ -537,9 +537,11 @@ class GameMap:
               randomizer_seed: int | None = None) -> ErrorCode | None:
         """Resets the game map.
         Args:
-            map_dimensions (tuple[int, int] | None): Optional new map dimensions.
-            starting_position (tuple[int, int] | None): Optional new starting position.
-            randomizer_seed (int | None): Optional new randomizer seed, no seed will randomize the seed.
+            map_dimensions (tuple[int, int] | None): New map dimensions (width, height) (1-indexed).
+                Defaults to None (used previous map dimensions).
+            starting_position (tuple[int, int] | None): New starting position (X, Y) (0-indexed).
+                Defaults to None (uses previous starting position).
+            randomizer_seed (int | None): New randomizer seed. Defaults to None (uses random seed).
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """

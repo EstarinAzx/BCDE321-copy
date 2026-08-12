@@ -4,7 +4,7 @@ from zimp.domain.movement.direction import Direction
 from zimp.domain.movement.tile import Tile
 
 
-def test_add_zombies_when_given_a_number_adds_zombies_to_count():
+def test_add_zombies_when_given_a_number_adds_zombies_to_count() -> None:
     # Arrange
     test_tile = Tile(1, (Direction.NORTH,))
 
@@ -15,7 +15,7 @@ def test_add_zombies_when_given_a_number_adds_zombies_to_count():
     assert test_tile.get_zombie_count() == 1
 
 
-def test_defeat_zombies_clears_all_zombies():
+def test_defeat_zombies_clears_all_zombies() -> None:
     # Arrange
     test_tile = Tile(1, (Direction.NORTH,))
     test_tile.add_zombies(6)
@@ -28,7 +28,7 @@ def test_defeat_zombies_clears_all_zombies():
 
 
 @pytest.mark.parametrize("rotation_dir", [Direction.NORTH, Direction.WEST, Direction.SOUTH, Direction.EAST])
-def test_rotate_rotates_to_given_direction(rotation_dir):
+def test_rotate_rotates_to_given_direction(rotation_dir) -> None:
     # Arrange
     test_tile = Tile(1, (Direction.NORTH,))
 
@@ -45,7 +45,7 @@ def test_rotate_rotates_to_given_direction(rotation_dir):
                           (Direction.SOUTH, Direction.EAST, Direction.WEST),
                           (Direction.EAST, Direction.SOUTH, Direction.WEST), ])
 def test_get_door_direction_when_rotated_returns_rotated_direction(rotation_dir, door_direction,
-                                                                   rotated_door_direction):
+                                                                   rotated_door_direction) -> None:
     # Arrange
     test_tile = Tile(1, (door_direction,))
     test_tile.rotate(rotation_dir)
@@ -65,7 +65,7 @@ def test_get_door_direction_when_rotated_returns_rotated_direction(rotation_dir,
 def test_has_door_in_direction_when_rotated_returns_true_on_matching_directions(rotation_dir, first_valid_door,
                                                                                 second_valid_door,
                                                                                 first_invalid_door,
-                                                                                second_invalid_door):
+                                                                                second_invalid_door) -> None:
     # Arrange & Act
     door_directions = (Direction.WEST, Direction.SOUTH)
     test_tile = Tile(1, door_directions)
@@ -86,7 +86,7 @@ def test_has_door_in_direction_when_rotated_returns_true_on_matching_directions(
 def test_has_door_in_opposite_direction_when_rotated_returns_true_on_opposite_directions(rotation_dir, first_valid_door,
                                                                                          second_valid_door,
                                                                                          first_invalid_door,
-                                                                                         second_invalid_door):
+                                                                                         second_invalid_door) -> None:
     # Arrange & Act
     door_directions = (Direction.WEST, Direction.SOUTH)
     test_tile = Tile(1, door_directions)
@@ -102,7 +102,8 @@ def test_has_door_in_opposite_direction_when_rotated_returns_true_on_opposite_di
 @pytest.mark.parametrize("rotation_dir, zombie_door_direction",
                          [(Direction.NORTH, Direction.EAST), (Direction.WEST, Direction.NORTH),
                           (Direction.SOUTH, Direction.WEST), (Direction.EAST, Direction.SOUTH), ])
-def test_add_zombie_door_when_given_direction_adds_door_in_correct_direction(rotation_dir, zombie_door_direction):
+def test_add_zombie_door_when_given_direction_adds_door_in_correct_direction(rotation_dir,
+                                                                             zombie_door_direction) -> None:
     # Arrange
     test_tile = Tile(1, (Direction.NORTH,))
     test_tile.rotate(rotation_dir)
@@ -114,7 +115,7 @@ def test_add_zombie_door_when_given_direction_adds_door_in_correct_direction(rot
     assert test_tile.has_door_in_direction(zombie_door_direction) is True
 
 
-def test_reset_clears_data_back_to_default_values():
+def test_reset_clears_data_back_to_default_values() -> None:
     # Arrange
     default_zombie_door_value = None
     default_rotation_value = Direction.NORTH

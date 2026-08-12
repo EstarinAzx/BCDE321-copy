@@ -5,6 +5,7 @@ from zimp.domain.movement.direction import Direction
 
 @dataclass(frozen=True)
 class TileData:
+    """TileData class used to hold essential information about individual tiles."""
     id: int
     position: tuple[int, int]
     rotation: Direction
