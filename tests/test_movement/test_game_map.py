@@ -768,7 +768,7 @@ def test_move_player_when_given_zombie_door_mode_invalid_move_to_know_tile_retur
     assert move_result.get_error_code() == zombie_door_error
 
 
-@pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, ()])
+@pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, (), None])
 def test_rotate_placement_tile_invalid_mode_returns_mode_error(game_mode):
     # Arrange
     movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
@@ -797,7 +797,7 @@ def test_rotate_placement_tile_rotate_locked_tile_returns_rotate_tile_error():
     assert rotate_result == rotate_tile_error
 
 
-@pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, ()])
+@pytest.mark.parametrize("game_mode", [GameMode.MOVE, GameMode.FLED, "PLAYING", -1000, (), None])
 def test_lock_placement_tile_invalid_mode_returns_mode_error(game_mode):
     # Arrange
     movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
@@ -809,3 +809,137 @@ def test_lock_placement_tile_invalid_mode_returns_mode_error(game_mode):
 
     # Assert
     assert rotate_result == mode_error
+
+
+@pytest.mark.parametrize("map_dimensions", [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}])
+def test_init_invalid_map_dimensions_type_raises_type_error(map_dimensions: tuple[int, int]):
+    # Arrange
+    starting_position = (2, 2)
+
+    # Act & Assert
+    with pytest.raises(TypeError, match="Invalid map dimensions type, must be a tuple of two integers"):
+        GameMap(map_dimensions=map_dimensions, starting_position=starting_position)
+
+
+@pytest.mark.parametrize("map_dimensions", [(0, 0), (-1, 3), (5, -1), (1, 1)])
+def test_init_invalid_map_dimensions_value_raises_value_error(map_dimensions: tuple[int, int]):
+    # Arrange
+    starting_position = (2, 2)
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="Map dimensions must be greater than 1x1"):
+        GameMap(map_dimensions=map_dimensions, starting_position=starting_position)
+
+
+@pytest.mark.parametrize("starting_position", [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}])
+def test_init_invalid_starting_position_type_raises_type_error(starting_position: tuple[int, int]):
+    # Arrange
+    map_dimensions = (4, 5)
+
+    # Act & Assert
+    with pytest.raises(TypeError, match="Invalid starting position type, must be a tuple of two integers"):
+        GameMap(map_dimensions=map_dimensions, starting_position=starting_position)
+
+
+@pytest.mark.parametrize("starting_position", [(-1, 3), (5, -1), (4, 5)])
+def test_init_invalid_starting_position_value_raises_value_error(starting_position: tuple[int, int]):
+    # Arrange
+    map_dimensions = (4, 5)
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="Starting position must be within the map dimensions"):
+        GameMap(map_dimensions=map_dimensions, starting_position=starting_position)
+
+
+def test_init_invalid_randomizer_seed_value_raises_value_error():
+    # Arrange
+    map_dimensions = (4, 5)
+    starting_position = (2, 2)
+    invalid_seed = "42"
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="Randomizer seed must be an integer"):
+        GameMap(map_dimensions=map_dimensions, starting_position=starting_position, randomizer_seed=invalid_seed)
+
+
+@pytest.mark.parametrize("map_dimensions",
+                         [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}, (0, 0), (-1, 3), (5, -1), (1, 1)])
+def test_reset_invalid_map_dimensions_returns_map_dimensions_error(map_dimensions: tuple[int, int]):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    map_dimensions_error = ErrorCode.INVALID_VALUE_MAP_DIMENSION
+
+    # Act
+    result = movement.reset(map_dimensions=map_dimensions)
+
+    # Assert
+    assert result == map_dimensions_error
+
+
+@pytest.mark.parametrize("map_dimensions", [(2, 2), (2, 4), (4, 2), (3, 3)])
+def test_reset_invalid_map_dimensions_smaller_than_existing_starting_position_returns_map_dimensions_error(
+        map_dimensions: tuple[int, int]):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(3, 3), randomizer_seed=1)
+    map_dimensions_error = ErrorCode.INVALID_VALUE_MAP_DIMENSION
+
+    # Act
+    result = movement.reset(map_dimensions=map_dimensions)
+
+    # Assert
+    assert result == map_dimensions_error
+
+
+@pytest.mark.parametrize("starting_position",
+                         [(4.1, 5.3), ("5", "5"), (4,), (4, 5, 5), [5, 5], {4, 4}, (-1, 3), (5, -1)])
+def test_reset_invalid_starting_position_returns_starting_position_error(starting_position: tuple[int, int]):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(4, 1), randomizer_seed=1)
+    starting_position_error = ErrorCode.INVALID_VALUE_STARTING_POSITION
+
+    # Act
+    result = movement.reset(starting_position=starting_position)
+
+    # Assert
+    assert result == starting_position_error
+
+
+@pytest.mark.parametrize("starting_position", [(6, 6), (2, 6), (6, 2), (5, 5)])
+def test_reset_invalid_starting_position_larger_than_existing_map_dimensions_returns_starting_position_error(
+        starting_position: tuple[int, int]):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(3, 3), randomizer_seed=1)
+    starting_position_error = ErrorCode.INVALID_VALUE_STARTING_POSITION
+
+    # Act
+    result = movement.reset(starting_position=starting_position)
+
+    # Assert
+    assert result == starting_position_error
+
+
+@pytest.mark.parametrize("map_dimensions, starting_position", [((3, 3), (2, 4)), ((3, 3), (4, 2)), ((3, 3), (3, 3))])
+def test_reset_invalid_starting_position_and_map_dimensions_returns_starting_position_error(
+        map_dimensions: tuple[int, int], starting_position: tuple[int, int]):
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(3, 3), randomizer_seed=1)
+    starting_position_error = ErrorCode.INVALID_VALUE_STARTING_POSITION
+
+    # Act
+    result = movement.reset(map_dimensions=map_dimensions, starting_position=starting_position)
+
+    # Assert
+    assert result == starting_position_error
+
+
+def test_reset_invalid_randomizer_seed_value_returns_randomizer_seed_error():
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 3), starting_position=(4, 1), randomizer_seed=1)
+    invalid_seed = "42"
+    randomizer_seed_error = ErrorCode.INVALID_VALUE_RANDOMIZER_SEED
+
+    # Act
+    result = movement.reset(randomizer_seed=invalid_seed)
+
+    # Assert
+    assert result == randomizer_seed_error

@@ -10,10 +10,36 @@ from zimp.support.fake_game_mode import GameMode
 
 
 class GameMap:
-    """GameMap class used to hold and calculate tile placement and player movement data."""
+    """GameMap class used to hold and calculate tile placement and player movement data.
+    Args:
+        map_dimensions (tuple[int, int]): Map dimensions (height, width) (1-indexed).
+        starting_position (tuple[int, int]): Starting position (0-indexed).
+        randomizer_seed (int): seed used to randomly order tiles.
+    """
 
     def __init__(self, map_dimensions: tuple[int, int], starting_position: tuple[int, int],
                  randomizer_seed: int | None = None) -> None:
+        # map dimension type check
+        if (not isinstance(map_dimensions, tuple) or len(map_dimensions) != 2
+                or not isinstance(map_dimensions[0], int) or not isinstance(map_dimensions[1], int)):
+            raise TypeError("Invalid map dimensions type, must be a tuple of two integers")
+        # map dimension value check
+        if map_dimensions[0] <= 1 or map_dimensions[1] <= 1:
+            raise ValueError("Map dimensions must be greater than 1x1")
+
+        # starting position type check
+        if (not isinstance(starting_position, tuple) or len(starting_position) != 2
+                or not isinstance(starting_position[0], int) or not isinstance(starting_position[1], int)):
+            raise TypeError("Invalid starting position type, must be a tuple of two integers")
+        # starting position value check
+        if starting_position[0] < 0 or starting_position[1] < 0 or starting_position[0] >= map_dimensions[0] or \
+                starting_position[1] >= map_dimensions[1]:
+            raise ValueError("Starting position must be within the map dimensions")
+
+        # seed value check
+        if randomizer_seed is not None and not isinstance(randomizer_seed, int):
+            raise ValueError("Randomizer seed must be an integer")
+
         self.__map_dimensions: tuple[int, int] = map_dimensions
         self.__starting_position: tuple[int, int] = starting_position
         self.__randomizer_seed: int | None = randomizer_seed
@@ -517,6 +543,41 @@ class GameMap:
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
+        if map_dimensions is not None:
+            # map dimension type check
+            if (not isinstance(map_dimensions, tuple) or len(map_dimensions) != 2
+                    or not isinstance(map_dimensions[0], int) or not isinstance(map_dimensions[1], int)):
+                return ErrorCode.INVALID_VALUE_MAP_DIMENSION
+            # map dimension value check
+            if map_dimensions[0] <= 1 or map_dimensions[1] <= 1:
+                return ErrorCode.INVALID_VALUE_MAP_DIMENSION
+
+        if starting_position is not None:
+            # start position type check
+            if (not isinstance(starting_position, tuple) or len(starting_position) != 2
+                    or not isinstance(starting_position[0], int) or not isinstance(starting_position[1], int)):
+                return ErrorCode.INVALID_VALUE_STARTING_POSITION
+            # start position value check
+            if starting_position[0] < 0 or starting_position[1] < 0:
+                return ErrorCode.INVALID_VALUE_STARTING_POSITION
+
+        # seed value check
+        if randomizer_seed is not None and not isinstance(randomizer_seed, int):
+            return ErrorCode.INVALID_VALUE_RANDOMIZER_SEED
+
+        if map_dimensions is not None and starting_position is None:
+            # check map dimensions still work with current start pos
+            if self.__starting_position[0] >= map_dimensions[0] or self.__starting_position[1] >= map_dimensions[1]:
+                return ErrorCode.INVALID_VALUE_MAP_DIMENSION
+        elif map_dimensions is None and starting_position is not None:
+            # check starting position fits with current map dim
+            if starting_position[0] >= self.__map_dimensions[0] or starting_position[1] >= self.__map_dimensions[1]:
+                return ErrorCode.INVALID_VALUE_STARTING_POSITION
+        elif map_dimensions is not None and starting_position is not None:
+            # new start pos needs to fit in new map dim
+            if starting_position[0] >= map_dimensions[0] or starting_position[1] >= map_dimensions[1]:
+                return ErrorCode.INVALID_VALUE_STARTING_POSITION
+
         if map_dimensions is not None:
             # set map dimensions
             self.__map_dimensions = map_dimensions

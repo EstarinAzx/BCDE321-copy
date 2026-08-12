@@ -103,7 +103,7 @@ def test_has_door_in_opposite_direction_when_rotated_returns_true_on_opposite_di
                          [(Direction.NORTH, Direction.EAST), (Direction.WEST, Direction.NORTH),
                           (Direction.SOUTH, Direction.WEST), (Direction.EAST, Direction.SOUTH), ])
 def test_add_zombie_door_when_given_direction_adds_door_in_correct_direction(rotation_dir, zombie_door_direction):
-    # Arrange & Act
+    # Arrange
     test_tile = Tile(1, (Direction.NORTH,))
     test_tile.rotate(rotation_dir)
 
@@ -112,3 +112,29 @@ def test_add_zombie_door_when_given_direction_adds_door_in_correct_direction(rot
 
     # Assert
     assert test_tile.has_door_in_direction(zombie_door_direction) is True
+
+
+def test_reset_clears_data_back_to_default_values():
+    # Arrange
+    default_zombie_door_value = None
+    default_rotation_value = Direction.NORTH
+    default_zombie_count_value = 0
+    default_locked_value = False
+    test_tile = Tile(1, (Direction.NORTH,))
+    test_tile.add_zombie_door(Direction.NORTH)
+    test_tile.rotate(Direction.WEST)
+    test_tile.add_zombies(5)
+    test_tile.lock()
+
+    # Act
+    test_tile.reset()
+    zombie_door_result = test_tile.get_data((1, 1)).zombie_door
+    rotation_result = test_tile.get_rotation()
+    zombie_count_result = test_tile.get_zombie_count()
+    locked_result = test_tile.is_locked()
+
+    # Assert
+    assert zombie_door_result == default_zombie_door_value
+    assert rotation_result == default_rotation_value
+    assert zombie_count_result == default_zombie_count_value
+    assert locked_result == default_locked_value

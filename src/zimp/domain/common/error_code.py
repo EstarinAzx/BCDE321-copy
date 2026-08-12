@@ -17,6 +17,9 @@ class ErrorCode(Enum):
     INVALID_MODE_LOCK_TILE = auto()
     INVALID_VALUE_GAME_MODE = auto()
     INVALID_VALUE_DIRECTION = auto()
+    INVALID_VALUE_MAP_DIMENSION = auto()
+    INVALID_VALUE_STARTING_POSITION = auto()
+    INVALID_VALUE_RANDOMIZER_SEED = auto()
 
     """GENERAL ERRORS"""
     FATAL_ERROR = auto()

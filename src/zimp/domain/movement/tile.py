@@ -4,7 +4,15 @@ from zimp.domain.movement.tile_effect import TileEffect
 
 
 class Tile:
-    """Tile class used to hold and calculate data for an individual tile."""
+    """Tile class used to hold and calculate data for an individual tile.
+    Args:
+        tile_id (int): ID of the tile.
+        doors (list[Door]): List of doors.
+        tile_effect (TileEffect): Effect of the tile. Defaults to None.
+        is_outside_tile (bool): Whether the tile is outside. Defaults to False.
+        is_exit_tile (bool): Whether the tile is the inside exit tile. Defaults to False.
+        is_entry_tile (bool): Whether the tile is the outside entry tile. Defaults to False.
+    """
 
     def __init__(self, tile_id: int, doors: tuple[Direction, ...], tile_effect: TileEffect | None = None,
                  is_outside_tile: bool = False, is_exit_tile: bool = False, is_entry_tile: bool = False) -> None:
