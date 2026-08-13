@@ -86,9 +86,9 @@ class EventHandler:
         state.set_mode(GameMode.FOUND_ITEM) # Contract assumption
         return new_card.item
 
-    def end_turn(self, state: CurrentState, tile_end_effect: TileEffect, tile: Tile) -> CardEffect | None:
+    def end_turn(self, state: CurrentState, tile: Tile) -> CardEffect | None:
         """Conclude the current turn and resolve room effects, then return the number of zombies to spawn"""
-        match tile_end_effect:
+        match tile.get_tile_effect():
             case TileEffect.HEALTH:
                 state.change_hp(self.__END_TURN_HEAL) # Contract assumption
             case TileEffect.SEARCH:

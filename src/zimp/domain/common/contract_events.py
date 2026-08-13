@@ -19,5 +19,5 @@ class EventsContract(Protocol):
         """Flee zombies in the current room"""
     def search_for_item(self, state: CurrentState) -> int | None:
         """After an event has found an item, draw the next card to see what it is and return its id."""
-    def end_turn(self, state: CurrentState, tile_end_effect: TileEffect, tile: Tile) -> CardEffect | None:
+    def end_turn(self, state: CurrentState, tile: Tile) -> CardEffect | None:
         """Conclude the current turn and resolve room effects, then return the number of zombies to spawn"""

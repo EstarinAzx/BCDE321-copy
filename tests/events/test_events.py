@@ -163,43 +163,42 @@ def test_resolve_flee_with_no_zombies_doesnt_change_hp(handler, state, tile):
 def test_end_turn_with_no_effect_changes_nothing(handler, state, tile):
     start_hp = state.get_hp()
     start_mode = state.get_mode()
-    end_effect = TileEffect.NONE
 
-    handler.end_turn(state, end_effect, tile)
+    handler.end_turn(state, tile)
 
     assert state.get_hp() == start_hp
     assert state.get_mode() == start_mode
 
 def test_end_turn_hp_effect(handler, state, tile):
     start_hp = state.get_hp()
-    end_effect = TileEffect.HEALTH
+    tile.set_tile_effect(TileEffect.HEALTH)
 
-    handler.end_turn(state, end_effect, tile)
+    handler.end_turn(state, tile)
 
     assert state.get_hp() == start_hp + 1
 
 def test_end_turn_item_changes_mode(handler, state, tile):
-    end_effect = TileEffect.SEARCH
+    tile.set_tile_effect(TileEffect.SEARCH)
 
-    handler.end_turn(state, end_effect, tile)
+    handler.end_turn(state, tile)
 
     assert state.get_mode() == GameMode.SEARCH_FOR_ITEM
 
 def test_end_turn_find_totem_finds_totem(handler, state, tile):
     start_totem = state.has_got_totem()
-    end_effect = TileEffect.FIND_TOTEM
+    tile.set_tile_effect(TileEffect.FIND_TOTEM)
 
-    handler.end_turn(state, end_effect, tile)
+    handler.end_turn(state, tile)
 
     assert start_totem == False
     assert state.has_got_totem() == True
 
 def test_end_turn_bury_totem_buries_totem(handler, state, tile):
-    end_effect = TileEffect.BURY_TOTEM
+    tile.set_tile_effect(TileEffect.BURY_TOTEM)
     start_buried = state.has_buried_totem()
     state.take_totem()
 
-    handler.end_turn(state, end_effect, tile)
+    handler.end_turn(state, tile)
 
     assert start_buried == False
     assert state.has_buried_totem() == True
@@ -209,8 +208,9 @@ def test_end_turn_bury_totem_buries_totem(handler, state, tile):
 def test_end_turn_invalid_effect_raises_error(handler, state, tile):
     start_hp = state.get_hp()
     start_mode = state.get_mode()
+    tile.set_tile_effect("INVALID")
 
-    effect = handler.end_turn(state, "INVALID", tile)
+    effect = handler.end_turn(state, tile)
 
     assert effect is None
     assert state.get_hp() == start_hp
@@ -218,9 +218,9 @@ def test_end_turn_invalid_effect_raises_error(handler, state, tile):
 
 def test_cannot_bury_totem_without_totem(handler, state, tile):
     start_totem = state.has_got_totem()
-    end_effect = TileEffect.BURY_TOTEM
+    tile.set_tile_effect(TileEffect.BURY_TOTEM)
 
-    handler.end_turn(state, end_effect, tile)
+    handler.end_turn(state, tile)
 
     assert start_totem == False
     assert state.has_buried_totem() == False
