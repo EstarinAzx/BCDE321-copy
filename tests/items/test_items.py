@@ -142,3 +142,12 @@ def test_using_a_weapon_is_rejected() -> None:
         inventory.use("machete")
 
     assert inventory.held == ["machete"]
+
+
+def test_held_items_does_not_expose_the_inventory_to_mutation() -> None:
+    inventory = Inventory()
+    inventory.add("machete")
+
+    inventory.held_items().append("chainsaw")
+
+    assert inventory.held_items() == ["machete"]

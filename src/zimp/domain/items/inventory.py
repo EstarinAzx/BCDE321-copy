@@ -46,6 +46,10 @@ class Inventory:
         self._require_held(item_id)
         self.held.remove(item_id)
 
+    def held_items(self) -> list[str]:
+        """What the player is carrying, as a copy the caller cannot corrupt."""
+        return list(self.held)
+
     def use(self, item_id: str) -> Effect:
         self._require_held(item_id)
         if item_id not in CONSUMABLE_EFFECTS:
