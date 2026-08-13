@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enums import Mode
+from zimp.domain.common.mode import Mode
 
 @dataclass
 class GameState:
@@ -29,6 +29,8 @@ class GameState:
 
     def advance_time(self, hours: int = 1) -> None:
         self.hour += hours
+        if self.hour >= 2:
+            self.time_ran_out = True
 
     def change_hp(self, amount: int) -> None:
         self.health += amount
@@ -55,7 +57,7 @@ class GameState:
         return self.buried_totem and self.health > 0
 
     def is_lost(self) -> bool:
-        if self.mode is Mode.LOST:
+        if self.mode == Mode.LOST:
             return True
 
         if self.health <= 0:
