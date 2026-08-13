@@ -54,6 +54,9 @@ class Inventory:
         self._require_held(item_id)
         if item_id not in CONSUMABLE_EFFECTS:
             raise ValueError(f"a {item_id} is not something you can use")
+        # Both refusals are checked before this point, so a rejected use
+        # leaves the pockets exactly as they were.
+        self.held.remove(item_id)
         return CONSUMABLE_EFFECTS[item_id]
 
     def record_battle(self) -> None:

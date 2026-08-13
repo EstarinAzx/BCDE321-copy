@@ -51,6 +51,36 @@ def test_using_a_can_of_soda_gives_two_health() -> None:
     assert effect.health == 2
 
 
+def test_a_used_consumable_is_spent() -> None:
+    inventory = Inventory()
+    inventory.add("can_of_soda")
+
+    inventory.use("can_of_soda")
+
+    assert inventory.held == []
+
+
+def test_the_same_consumable_cannot_be_used_twice() -> None:
+    inventory = Inventory()
+    inventory.add("can_of_soda")
+    inventory.use("can_of_soda")
+
+    with pytest.raises(ValueError, match="can_of_soda"):
+        inventory.use("can_of_soda")
+
+
+def test_spending_a_consumable_frees_a_pocket() -> None:
+    inventory = Inventory()
+    inventory.add("can_of_soda")
+    inventory.add("machete")
+
+    inventory.use("can_of_soda")
+    inventory.add("chainsaw")
+
+    assert inventory.held == ["machete", "chainsaw"]
+
+
+
 def test_holding_a_machete_gives_a_two_point_attack_bonus() -> None:
     inventory = Inventory()
     inventory.add("machete")
