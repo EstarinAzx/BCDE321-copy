@@ -79,3 +79,20 @@ def test_an_effect_that_changes_both_health_and_attack_reports_both() -> None:
     message = controller_with(items).handle_use_item("mystery_brew")
 
     assert message == "Used a mystery_brew. Health -1. Attack +1."
+
+
+def test_the_controller_reports_what_the_player_is_carrying() -> None:
+    items = FakeItemsGateway(held=["machete", "can_of_soda"])
+
+    assert controller_with(items).held_items() == ["machete", "can_of_soda"]
+
+
+def test_an_unavailable_inventory_reports_nothing_carried_rather_than_crashing() -> None:
+    items = FakeItemsGateway()
+    items.held_items = _raise_offline
+
+    assert controller_with(items).held_items() == []
+
+
+def _raise_offline() -> list[str]:
+    raise RuntimeError("dependency offline")

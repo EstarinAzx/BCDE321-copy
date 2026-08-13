@@ -45,6 +45,13 @@ class GameController:
             return "Cannot drop: the items component is currently unavailable."
         return f"Dropped a {item_id}."
 
+    def held_items(self) -> list[str]:
+        """What to display as carried. An unavailable inventory shows as empty."""
+        try:
+            return self._items.held_items()
+        except RuntimeError:
+            return []
+
 
 def _describe(effect: Effect) -> list[str]:
     """Turn an Effect into sentences, skipping the parts that change nothing."""
