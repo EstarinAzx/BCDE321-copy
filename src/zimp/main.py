@@ -2,6 +2,7 @@ import tkinter as tk
 
 from zimp.domain.basic_movement import BasicMovement
 from zimp.domain.game_state import GameState
+from zimp.domain.items.inventory import Inventory
 from zimp.integration.game_controller import GameController
 from zimp.ui.tk_app import TkGameView
 
@@ -10,7 +11,8 @@ def build_app() -> tk.Tk:
     """Composition root: replace dependencies here, not inside widgets."""
     root = tk.Tk()
     movement = BasicMovement(GameState())
-    TkGameView(root, GameController(movement))
+    items = Inventory()
+    TkGameView(root, GameController(movement, items))
     return root
 
 
