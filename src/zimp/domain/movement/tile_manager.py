@@ -28,8 +28,9 @@ class TileManager:
         self.__tile_randomizer: random.Random = random.Random()  # class specific randomizer
         self.__randomizer_seed: int | None = None
 
-        # make tiles
+        # setup tiles
         self.__create_tiles()
+        self.reset_tile_order()
 
     def __create_tiles(self) -> None:
         """Creates inside and outside tile objects."""
@@ -54,25 +55,6 @@ class TileManager:
             8: Tile(16, (Direction.EAST, Direction.SOUTH), TileEffect.BURY_TOTEM, is_outside_tile=True)
         }
 
-    def reset_tile_order(self) -> None:
-        """Resets tile order."""
-        self.__inside_tile_order_index = 0
-        self.__outside_tile_order_index = 0
-        self.__shuffle_tile_order()
-
-    def set_randomizer_seed(self, randomizer_seed: int | None) -> ErrorCode | None:
-        """Sets the randomizer seed to the given value.
-        Args:
-            randomizer_seed (int | None): New randomizer seed value.
-        Returns:
-            ErrorCode: If seed was invalid. | None: If nothing went wrong.
-        """
-        if not is_valid_seed(randomizer_seed):
-            return ErrorCode.INVALID_TYPE_RANDOMIZER_SEED
-
-        self.__randomizer_seed = randomizer_seed
-        return None  # success
-
     def __shuffle_tile_order(self) -> None:
         """Shuffles order of inside/outside tiles."""
         self.__tile_randomizer.seed(self.__randomizer_seed)
@@ -89,6 +71,22 @@ class TileManager:
 
         self.__inside_tile_order = inside_random_order
         self.__outside_tile_order = outside_random_order
+
+    def reset_tile_order(self, randomizer_seed: int | None = None) -> ErrorCode | None:
+        """Resets the order of the inside and outside tiles.
+        Args:
+            randomizer_seed (int | None): New randomizer seed value. Defaults to None (random seed).
+        Returns:
+            ErrorCode: If seed was invalid. | None: If nothing went wrong.
+        """
+        if not is_valid_seed(randomizer_seed):
+            return ErrorCode.INVALID_TYPE_RANDOMIZER_SEED
+
+        self.__randomizer_seed = randomizer_seed
+        self.__inside_tile_order_index = 0
+        self.__outside_tile_order_index = 0
+        self.__shuffle_tile_order()
+        return None  # success
 
     def is_inside_tiles_depleted(self) -> bool:
         """Checks if player has explored all inside tiles.

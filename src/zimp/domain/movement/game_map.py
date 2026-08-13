@@ -48,7 +48,7 @@ class GameMap:
         self.__tile_manager = TileManager()
 
         # seed value check
-        if self.__tile_manager.set_randomizer_seed(randomizer_seed) is not None:
+        if self.__tile_manager.reset_tile_order(randomizer_seed) is not None:
             raise TypeError("Randomizer seed must be an integer")
 
         self.__map_dimensions: tuple[int, int] = map_dimensions
@@ -69,7 +69,6 @@ class GameMap:
         self.__player_is_outside = False
         self.__player_position = self.__starting_position
 
-        self.__tile_manager.reset_tile_order()
         self.__add_tile(self.__starting_position)  # add start tile
         self.__display_tiles[self.__starting_position].lock()  # lock first tile
 
@@ -482,7 +481,7 @@ class GameMap:
             return validation_error
 
         # checks seed
-        seed_error = self.__tile_manager.set_randomizer_seed(randomizer_seed)
+        seed_error = self.__tile_manager.reset_tile_order(randomizer_seed)
         if seed_error is not None:
             return seed_error
 
