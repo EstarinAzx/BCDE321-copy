@@ -4,7 +4,7 @@ from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.movement.game_map import GameMap
 from zimp.domain.movement.direction import Direction
 from zimp.domain.movement.tile_effect import TileEffect
-from zimp.support.fake_game_mode import GameMode
+from zimp.support.movement.fake_game_mode import GameMode
 
 
 # ========================== Good Day ========================== #
@@ -492,17 +492,18 @@ def test_get_tile_effect_returns_current_tile_effect() -> None:
     assert effect_result == tile_effect
 
 
-def test_get_tile_effect_returns_none_if_no_effect() -> None:
+def test_get_tile_effect_returns_tile_effect_none_if_no_effect() -> None:
     # Arrange
     movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=42)
     movement.move_player(GameMode.MOVE, Direction.NORTH)
     movement.lock_placement_tile(GameMode.PLACEMENT)
+    tile_effect = TileEffect.NONE
 
     # Act
     effect_result = movement.get_tile_effect()
 
     # Assert
-    assert effect_result is None
+    assert effect_result == tile_effect
 
 
 def test_defeat_zombies_removes_all_zombies_only_on_current_tile() -> None:

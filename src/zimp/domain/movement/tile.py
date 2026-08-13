@@ -14,7 +14,7 @@ class Tile:
         is_entry_tile (bool): Whether the tile is the outside entry tile. Defaults to False.
     """
 
-    def __init__(self, tile_id: int, doors: tuple[Direction, ...], tile_effect: TileEffect | None = None,
+    def __init__(self, tile_id: int, doors: tuple[Direction, ...], tile_effect: TileEffect = TileEffect.NONE,
                  is_outside_tile: bool = False, is_exit_tile: bool = False, is_entry_tile: bool = False) -> None:
         self.__id = tile_id
         self.__doors = doors
@@ -27,7 +27,7 @@ class Tile:
         self.__zombie_count = 0
         self.__is_locked = False
 
-    def get_tile_effect(self) -> TileEffect | None:
+    def get_tile_effect(self) -> TileEffect:
         return self.__tile_effect
 
     def get_rotation(self) -> Direction:

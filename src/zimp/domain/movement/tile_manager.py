@@ -25,6 +25,7 @@ class TileManager:
         self.__outside_tile_order: list[int] = []
         self.__INSIDE_TILE_DETAILS: dict[int, Tile] = {}
         self.__OUTSIDE_TILE_DETAILS: dict[int, Tile] = {}
+        self.__tile_randomizer: random.Random = random.Random()  # class specific randomizer
         self.__randomizer_seed: int | None = None
 
         # make tiles
@@ -74,9 +75,11 @@ class TileManager:
 
     def __shuffle_tile_order(self) -> None:
         """Shuffles order of inside/outside tiles."""
-        random.seed(self.__randomizer_seed)
-        inside_random_order = random.sample(range(self.__MIN_TILE_ID, self.__MAX_TILE_ID), k=self.__NUM_OF_TILES)
-        outside_random_order = random.sample(range(self.__MIN_TILE_ID, self.__MAX_TILE_ID), k=self.__NUM_OF_TILES)
+        self.__tile_randomizer.seed(self.__randomizer_seed)
+        inside_random_order = self.__tile_randomizer.sample(range(self.__MIN_TILE_ID, self.__MAX_TILE_ID),
+                                                            k=self.__NUM_OF_TILES)
+        outside_random_order = self.__tile_randomizer.sample(range(self.__MIN_TILE_ID, self.__MAX_TILE_ID),
+                                                             k=self.__NUM_OF_TILES)
 
         # add inside/outside starting tiles to start of list
         inside_random_order.remove(self.__INSIDE_START_TILE_INDEX)

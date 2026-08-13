@@ -5,7 +5,7 @@ from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.result import Result
 from zimp.domain.movement.tile_data import TileData
 from zimp.domain.movement.tile_effect import TileEffect
-from zimp.support.fake_game_mode import GameMode
+from zimp.support.movement.fake_game_mode import GameMode
 
 
 @runtime_checkable
@@ -21,7 +21,7 @@ class MovementContract(Protocol):
     def lock_placement_tile(self, mode: GameMode) -> ErrorCode | None:
         """Lock the rotation of the placement tile"""
 
-    def need_zombie_door(self, mode: GameMode) -> bool:
+    def need_zombie_door(self) -> bool:
         """Check if map needs a zombie door"""
 
     def get_tile_data(self) -> list[TileData]:
@@ -41,6 +41,9 @@ class MovementContract(Protocol):
 
     def get_tile_effect(self) -> TileEffect:
         """Get tile effect of current tile"""
+
+    def get_map_dimensions(self) -> tuple[int, int]:
+        """Get the map dimensions"""
 
     def reset(self, map_dimensions: tuple[int, int] | None = None, starting_position: tuple[int, int] | None = None,
               randomizer_seed: int | None = None) -> ErrorCode | None:

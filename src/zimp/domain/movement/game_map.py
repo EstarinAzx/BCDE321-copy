@@ -9,7 +9,7 @@ from zimp.domain.movement.tile_effect import TileEffect
 from zimp.domain.movement.tile_manager import TileManager
 from zimp.domain.movement.validators import is_valid_point_type, is_valid_point_within_range, validate_map_and_position, \
     is_move_valid
-from zimp.support.fake_game_mode import GameMode
+from zimp.support.movement.fake_game_mode import GameMode
 
 
 class GameMap:
@@ -436,7 +436,7 @@ class GameMap:
         """
         self.__display_tiles[self.__player_position].add_zombies(number_of_zombies)
 
-    def get_tile_effect(self) -> TileEffect | None:
+    def get_tile_effect(self) -> TileEffect:
         """Gets the tile effect of the tile the player is currently on.
         Returns:
             TileEffect: The tile effect of the tile. | None: If there is no tile effect.

@@ -6,3 +6,4 @@ class TileEffect(Enum):
     SEARCH = auto()
     FIND_TOTEM = auto()
     BURY_TOTEM = auto()
+    NONE = auto()
