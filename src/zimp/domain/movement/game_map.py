@@ -1,4 +1,3 @@
-import random
 from typing import Final
 
 from zimp.domain.common.error_code import ErrorCode
@@ -7,8 +6,9 @@ from zimp.domain.movement.direction import Direction
 from zimp.domain.movement.tile import Tile
 from zimp.domain.movement.tile_data import TileData
 from zimp.domain.movement.tile_effect import TileEffect
-from zimp.domain.movement.validators import is_valid_point_type, is_valid_seed, is_valid_point_within_range, \
-    validate_map_and_position, is_move_valid
+from zimp.domain.movement.tile_manager import TileManager
+from zimp.domain.movement.validators import is_valid_point_type, is_valid_point_within_range, validate_map_and_position, \
+    is_move_valid
 from zimp.support.fake_game_mode import GameMode
 
 
@@ -44,90 +44,34 @@ class GameMap:
         if not is_valid_point_within_range(starting_position, self.__DEFAULT_MINIMUM_START_POSITION, map_dimensions):
             raise ValueError("Starting position must be within the map dimensions")
 
+        # add tile manager
+        self.__tile_manager = TileManager()
+
         # seed value check
-        if not is_valid_seed(randomizer_seed):
+        if self.__tile_manager.set_randomizer_seed(randomizer_seed) is not None:
             raise TypeError("Randomizer seed must be an integer")
 
         self.__map_dimensions: tuple[int, int] = map_dimensions
         self.__starting_position: tuple[int, int] = starting_position
-        self.__randomizer_seed: int | None = randomizer_seed
         self.__display_tiles: dict[tuple[int, int], Tile] = {}
         self.__player_position: tuple[int, int]
-        # tile addition details
-        self.__inside_tile_order: list[int]
-        self.__outside_tile_order: list[int]
-        self.__inside_tile_order_index: int
-        self.__outside_tile_order_index: int
-        self.__player_is_outside: bool
         # tile placement details
+        self.__player_is_outside: bool
         self.__last_added_tile: Tile
         self.__last_move_direction: Direction
         self.__last_move_destination_position: tuple[int, int]
-
-        # tile details
-        self.__inside_tile_details = {
-            1: Tile(1, (Direction.NORTH,)),
-            2: Tile(2, (Direction.NORTH, Direction.WEST)),
-            3: Tile(3, (Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST), is_exit_tile=True),
-            4: Tile(4, (Direction.NORTH, Direction.EAST, Direction.WEST)),
-            5: Tile(5, (Direction.NORTH,)),
-            6: Tile(6, (Direction.NORTH, Direction.EAST, Direction.WEST), TileEffect.HEALTH),
-            7: Tile(7, (Direction.NORTH,), TileEffect.SEARCH),
-            8: Tile(8, (Direction.EAST, Direction.WEST), TileEffect.FIND_TOTEM)
-        }
-        self.__outside_tile_details = {
-            1: Tile(9, (Direction.EAST, Direction.SOUTH, Direction.WEST), is_outside_tile=True),
-            2: Tile(10, (Direction.EAST, Direction.SOUTH, Direction.WEST), is_outside_tile=True),
-            3: Tile(11, (Direction.NORTH, Direction.EAST, Direction.SOUTH), is_outside_tile=True, is_entry_tile=True),
-            4: Tile(12, (Direction.SOUTH, Direction.WEST), is_outside_tile=True),
-            5: Tile(13, (Direction.EAST, Direction.SOUTH, Direction.WEST), TileEffect.HEALTH, is_outside_tile=True),
-            6: Tile(14, (Direction.EAST, Direction.SOUTH, Direction.WEST), is_outside_tile=True),
-            7: Tile(15, (Direction.EAST, Direction.SOUTH, Direction.WEST), is_outside_tile=True),
-            8: Tile(16, (Direction.EAST, Direction.SOUTH), TileEffect.BURY_TOTEM, is_outside_tile=True)
-        }
 
         # setup map
         self.__setup()
 
     def __setup(self) -> None:
         """Sets up the game map."""
-        self.__inside_tile_order_index = 0
-        self.__outside_tile_order_index = 0
         self.__player_is_outside = False
         self.__player_position = self.__starting_position
-        self.__shuffle_tiles()
+
+        self.__tile_manager.reset_tile_order()
         self.__add_tile(self.__starting_position)  # add start tile
         self.__display_tiles[self.__starting_position].lock()  # lock first tile
-
-    def __shuffle_tiles(self) -> None:
-        """Shuffles order of inside/outside tiles."""
-        random.seed(self.__randomizer_seed)
-        inside_random_order = random.sample(range(1, 9), k=8)
-        outside_random_order = random.sample(range(1, 9), k=8)
-
-        # add inside/outside starting tiles to start of list
-        inside_start_tile_index = 1
-        outside_start_tile_index = 3
-        inside_random_order.remove(inside_start_tile_index)
-        outside_random_order.remove(outside_start_tile_index)
-        inside_random_order.insert(0, inside_start_tile_index)
-        outside_random_order.insert(0, outside_start_tile_index)
-        self.__inside_tile_order = inside_random_order
-        self.__outside_tile_order = outside_random_order
-
-    def __is_outside_tiles_depleted(self) -> bool:
-        """Checks if player has explored all outside tiles while outside.
-        Returns:
-            bool: True if player has explored all outside tiles, False otherwise.
-        """
-        return self.__player_is_outside and self.__outside_tile_order_index >= len(self.__outside_tile_order)
-
-    def __is_inside_tiles_depleted(self) -> bool:
-        """Checks if player has explored all inside tiles while inside.
-        Returns:
-            bool: True if player has explored all inside tiles, False otherwise.
-        """
-        return not self.__player_is_outside and self.__inside_tile_order_index >= len(self.__inside_tile_order)
 
     def __add_tile(self, position: tuple[int, int]) -> ErrorCode | None:
         """Adds next tile to the displayed tiles.
@@ -136,30 +80,17 @@ class GameMap:
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        # checks if all inside/outside tiles have been explored
-        if self.__is_outside_tiles_depleted():
-            return ErrorCode.DEPLETED_OUTSIDE_TILES
-        if self.__is_inside_tiles_depleted():
-            return ErrorCode.DEPLETED_INSIDE_TILES
-
         if self.__player_is_outside:
-            # gets next outside tile if player is outside
-            index = self.__outside_tile_order[self.__outside_tile_order_index]
-            new_tile = self.__outside_tile_details.get(index)
-            self.__outside_tile_order_index += 1
+            tile_result = self.__tile_manager.get_next_outside_tile()
         else:
-            # gets next inside tile if player is inside
-            index = self.__inside_tile_order[self.__inside_tile_order_index]
-            new_tile = self.__inside_tile_details.get(index)
-            self.__inside_tile_order_index += 1
+            tile_result = self.__tile_manager.get_next_inside_tile()
 
-        # error if no new tile
-        if new_tile is None:
-            return ErrorCode.FATAL_ERROR
+        if tile_result.is_fail():
+            return tile_result.get_error_code()
 
         # add tile using position as key
-        self.__display_tiles[position] = new_tile
-        self.__last_added_tile = new_tile
+        self.__display_tiles[position] = tile_result.get_data()
+        self.__last_added_tile = tile_result.get_data()
         return None
 
     def __update_player_area(self, move_direction: Direction, current_tile: Tile) -> None:
@@ -271,7 +202,7 @@ class GameMap:
                 new_pos = (position[0], position[1] + 1)
             case Direction.WEST:
                 new_pos = (position[0] - 1, position[1])
-            case _:
+            case Direction.EAST:
                 new_pos = (position[0] + 1, position[1])
 
         # validates new position
@@ -446,9 +377,9 @@ class GameMap:
             bool: True if a zombie door is needed, False otherwise.
         """
         # check if all inside/outside tiles have been explored
-        if self.__is_outside_tiles_depleted():
+        if self.__player_is_outside and self.__tile_manager.is_outside_tiles_depleted():
             return False
-        if self.__is_inside_tiles_depleted():
+        if not self.__player_is_outside and self.__tile_manager.is_inside_tiles_depleted():
             return False
 
         # loop through all displayed tiles
@@ -527,10 +458,11 @@ class GameMap:
                 Defaults to None (used previous map dimensions).
             starting_position (tuple[int, int] | None): New starting position (X, Y) (0-indexed).
                 Defaults to None (uses previous starting position).
-            randomizer_seed (int | None): New randomizer seed. Defaults to None (uses random seed).
+            randomizer_seed (int | None): New randomizer seed. Defaults to None (random seed).
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
+        # checks map and start
         validation_error = validate_map_and_position(self.__map_dimensions, self.__player_position,
                                                      self.__DEFAULT_MINIMUM_MAP_DIMENSIONS,
                                                      self.__DEFAULT_MINIMUM_START_POSITION,
@@ -538,21 +470,18 @@ class GameMap:
         if validation_error is not None:
             return validation_error
 
-        if not is_valid_seed(randomizer_seed):
-            return ErrorCode.INVALID_TYPE_RANDOMIZER_SEED
+        # checks seed
+        seed_error = self.__tile_manager.set_randomizer_seed(randomizer_seed)
+        if seed_error is not None:
+            return seed_error
 
+        # assigns new map and start
         if map_dimensions is not None:
-            # set map dimensions
             self.__map_dimensions = map_dimensions
-
         if starting_position is not None:
-            # set new starting pos
             self.__starting_position = starting_position
 
-        # set new seed for tile randomizer
-        self.__randomizer_seed = randomizer_seed
-
-        # reset and clear all displayed tiles
+        # reset map and clears all displayed tiles
         for position, tile in self.__display_tiles.items():
             tile.reset()
         self.__display_tiles.clear()
