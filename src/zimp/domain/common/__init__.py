@@ -1,1 +1,1 @@
-"""Shared state to be used by the various modules"""
+"""Shared files to be used by multiple different modules"""

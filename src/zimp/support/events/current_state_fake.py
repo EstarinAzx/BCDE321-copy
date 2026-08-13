@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from zimp.domain.common.mode import Mode
+from zimp.domain.common.game_mode import GameMode
 
 @dataclass
 class CurrentState:
-    def __init__(self, time=0, mode=Mode.DEV_CARD):
+    def __init__(self, time=0, mode=GameMode.DEV_CARD):
         self._time = time
         self._mode = mode
         self._hp = 5
@@ -26,10 +26,13 @@ class CurrentState:
     def get_time(self) -> int:
         return self._time
 
-    def get_mode(self) -> Mode:
+    def advance_time(self) -> None:
+        self._time += 1
+
+    def get_mode(self) -> GameMode:
         return self._mode
 
-    def set_mode(self, new_mode: Mode) -> None:
+    def set_mode(self, new_mode: GameMode) -> None:
         self._mode = new_mode
 
     def take_totem(self) -> None:

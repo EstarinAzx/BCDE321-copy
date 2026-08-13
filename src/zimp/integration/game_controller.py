@@ -1,5 +1,5 @@
 from zimp.domain.contracts import MovementGateway
-from zimp.domain.events.contracts_events import EventsContract
+from zimp.domain.common.contract_events import EventsContract
 
 class GameController:
     """Thin, testable boundary between Tkinter events and domain behaviour."""

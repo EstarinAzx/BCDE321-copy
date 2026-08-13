@@ -9,7 +9,7 @@ class EffectType(Enum):
 
 @dataclass(frozen=True)
 class CardEffect:
-    effect: EffectType
+    effect_type: EffectType
     value: int = 0
 
 @dataclass(frozen=True)

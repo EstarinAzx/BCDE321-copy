@@ -1,6 +1,6 @@
 from enum import Enum, auto
 
-class Mode(Enum):
+class GameMode(Enum):
     READY_TO_MOVE = auto(),
     PLACE = auto(),
     ZOMBIE_DOOR = auto(),
