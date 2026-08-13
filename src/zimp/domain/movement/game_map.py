@@ -91,7 +91,7 @@ class GameMap:
         # add tile using position as key
         self.__display_tiles[position] = tile_result.get_data()
         self.__last_added_tile = tile_result.get_data()
-        return None
+        return None  # success
 
     def __update_player_area(self, move_direction: Direction, current_tile: Tile) -> None:
         """Updates player area if transitioning between inside/outside areas through the entry/exit doors.
@@ -99,7 +99,7 @@ class GameMap:
             move_direction (Direction): Direction player is moving towards.
             current_tile (Tile): The tile the player is currently on.
         """
-        # entry/exit have transition in north door
+        # entry/exit tiles have transition as their north doors
         moving_through_transition_door = move_direction == current_tile.get_rotation()
         if current_tile.is_exit() and moving_through_transition_door:
             self.__player_is_outside = True
@@ -123,8 +123,8 @@ class GameMap:
 
         if self.__display_tiles.get(next_tile_pos_result.get_data()) is not None:
             return False  # exit arrow cant point to existing tile
-        else:
-            return True  # exit arrow pointing at blank tile
+
+        return True  # exit arrow pointing at blank tile
 
     def __is_entry_aligned(self, new_tile_direction: Direction) -> bool:
         """Checks if the entry tiles transition door (NORTH) points at the exit tile.
@@ -144,10 +144,10 @@ class GameMap:
         past_tile = self.__display_tiles.get(next_tile_pos_result.get_data())
         if past_tile is None or not past_tile.is_exit():
             return False  # entry arrow cant point to blank tile or tile that is NOT the exit
-        else:
-            return True  # entry arrow pointing at exit tile
 
-    def __calculate_placement_tile_rotation(self) -> None:
+        return True  # entry arrow pointing at exit tile
+
+    def __calculate_placement_tile_rotation(self) -> ErrorCode | None:
         """Rotates new tile until doors are aligned."""
         original_rotation = self.__last_added_tile.get_rotation()
 
@@ -155,13 +155,18 @@ class GameMap:
         for i in range(4):
             new_tile_direction = Direction((original_rotation.value + (90 * i)) % 360)
             self.__last_added_tile.rotate(new_tile_direction)
+
+            # check if doors align
             if self.__last_added_tile.has_door_in_opposite_direction(self.__last_move_direction):
-                # if doors align check for entry and exit
                 if not self.__is_exit_clear(new_tile_direction):
-                    continue  # if exit is not clear then try new rotation
+                    continue  # if exit is not clear then skip to next rotation
                 if not self.__is_entry_aligned(new_tile_direction):
-                    continue  # if entry is not aligned try new rotation
-                break
+                    continue  # if entry is not aligned then skip to next rotation
+
+                return None  # valid rotation found
+
+        # if no rotation is valid the tile cant be placed
+        return ErrorCode.FATAL_UNPLACEABLE_TILE
 
     def __setup_placement_tile(self, move_direction: Direction, current_tile: Tile,
                                destination_position: tuple[int, int]) -> ErrorCode | None:
@@ -179,10 +184,15 @@ class GameMap:
         if add_error is not None:
             return add_error
 
-        # save direction, position, and calculate new tile rotation
+        # save direction and position
         self.__last_move_direction = move_direction
         self.__last_move_destination_position = destination_position
-        self.__calculate_placement_tile_rotation()
+
+        # find tile rotation and return any error
+        place_error = self.__calculate_placement_tile_rotation()
+        if place_error is not None:
+            return place_error
+
         return None  # success
 
     def __calculate_position(self, position: tuple[int, int], direction: Direction) -> Result:
@@ -229,14 +239,15 @@ class GameMap:
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        if current_tile.has_door_in_direction(direction):
-            # door opens in direction
-            setup_place_error = self.__setup_placement_tile(direction, current_tile, destination_position)
-            if setup_place_error is not None:
-                return setup_place_error  # return error
-            return None  # no error - need placement mode
-        else:
-            return ErrorCode.INVALID_MOVE_NO_DOOR  # no door opens in direction
+        if not current_tile.has_door_in_direction(direction):
+            return ErrorCode.INVALID_MOVE_NO_DOOR  # no door opens in given direction
+
+        # setup placement and return any error
+        setup_place_error = self.__setup_placement_tile(direction, current_tile, destination_position)
+        if setup_place_error is not None:
+            return setup_place_error
+
+        return None  # no error - need placement mode
 
     def __handle_move_to_known_tile(self, direction: Direction, destination_tile: Tile, current_tile: Tile,
                                     destination_position: tuple[int, int]) -> ErrorCode | None:
@@ -250,13 +261,13 @@ class GameMap:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
         move_error = is_move_valid(current_tile, destination_tile, direction)
-        if move_error is None:
-            # valid move updates player
-            self.__update_player_area(direction, current_tile)
-            self.__player_position = destination_position
-            return None  # no error - move was success
-        else:
+        if move_error is not None:
             return move_error  # invalid move
+
+        # valid move updates player
+        self.__update_player_area(direction, current_tile)
+        self.__player_position = destination_position
+        return None  # no error - move was success
 
     def move_player(self, mode: GameMode, direction: Direction) -> Result:
         """Attempts to move the player in the given direction.

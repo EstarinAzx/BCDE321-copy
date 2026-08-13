@@ -712,6 +712,33 @@ def test_move_player_when_given_move_mode_valid_move_when_all_outside_explored_r
     assert move_result.get_error_code() == depleted_outside_error
 
 
+def test_move_player_when_given_move_mode_unplaceable_tile_returns_unplaceable_tile_error() -> None:
+    # Arrange
+    movement = GameMap(map_dimensions=(5, 5), starting_position=(0, 3), randomizer_seed=7)
+    move_game_mode = GameMode.MOVE
+    move_direction = Direction.WEST
+    unplaceable_error = ErrorCode.FATAL_UNPLACEABLE_TILE
+    movement.move_player(GameMode.MOVE, Direction.NORTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.EAST)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.SOUTH)
+    movement.rotate_placement_tile(GameMode.PLACEMENT)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.MOVE, Direction.SOUTH)
+    movement.lock_placement_tile(GameMode.PLACEMENT)
+    movement.move_player(GameMode.ZOMBIE_DOOR, Direction.WEST)
+
+    # Act
+    move_result = movement.move_player(move_game_mode, move_direction)
+
+    # Assert
+    assert move_result.is_fail() is True
+    assert move_result.get_error_code() == unplaceable_error
+
+
 def test_move_player_when_given_combat_mode_invalid_move_to_empty_tile_returns_flee_error() -> None:
     # Arrange
     movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=1)

@@ -22,6 +22,7 @@ class ErrorCode(Enum):
     INVALID_TYPE_MAP_DIMENSION = auto()
     INVALID_TYPE_STARTING_POSITION = auto()
     INVALID_TYPE_RANDOMIZER_SEED = auto()
+    FATAL_UNPLACEABLE_TILE = auto()
 
     """GENERAL ERRORS"""
     FATAL_ERROR = auto()
