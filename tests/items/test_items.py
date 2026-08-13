@@ -1,6 +1,6 @@
 import pytest
 
-from zimp.domain.items import Inventory
+from zimp.domain.items.inventory import Inventory
 
 
 def test_added_item_is_held() -> None:
