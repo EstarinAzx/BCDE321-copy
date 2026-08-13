@@ -1,6 +1,6 @@
 import random
 
-from zimp.domain.common.game_mode import GameMode
+from zimp.domain.common.mode import Mode
 from zimp.domain.common.tile_effect import TileEffect
 from zimp.support.events.tile_fake import Tile
 from zimp.support.events.current_state_fake import CurrentState
@@ -58,10 +58,10 @@ class EventHandler:
         if current_effect.effect_type == EffectType.HP:
             state.change_hp(current_effect.value) # Contract assumption
         elif current_effect.effect_type == EffectType.ZOMBIES:
-            state.set_mode(GameMode.COMBAT) # Contract assumption
+            state.set_mode(Mode.COMBAT) # Contract assumption
             tile.add_zombies(current_effect.value)
         elif current_effect.effect_type == EffectType.ITEM:
-            state.set_mode(GameMode.SEARCH_FOR_ITEM) # Contract assumption
+            state.set_mode(Mode.SEARCH_FOR_ITEM) # Contract assumption
 
         return current_effect
 
@@ -83,7 +83,7 @@ class EventHandler:
         """After an event has found an item, draw the next card to see what it is and return its id."""
         new_card = self.__draw_card(state)
 
-        state.set_mode(GameMode.FOUND_ITEM) # Contract assumption
+        state.set_mode(Mode.FOUND_ITEM) # Contract assumption
         return new_card.item
 
     def end_turn(self, state: CurrentState, tile: Tile) -> CardEffect | None:
@@ -92,7 +92,7 @@ class EventHandler:
             case TileEffect.HEALTH:
                 state.change_hp(self.__END_TURN_HEAL) # Contract assumption
             case TileEffect.SEARCH:
-                state.set_mode(GameMode.SEARCH_FOR_ITEM) # Contact assumption
+                state.set_mode(Mode.SEARCH_FOR_ITEM) # Contact assumption
             case TileEffect.FIND_TOTEM:
                 state.take_totem() # Contract assumption
                 return self.draw_and_resolve_card(state, tile)

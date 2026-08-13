@@ -3,7 +3,7 @@ from zimp.domain.events.event_handler import EventHandler
 from zimp.domain.events.dev_card import DevCard, CardEffect, EffectType
 from zimp.support.events.current_state_fake import CurrentState
 from zimp.support.events.tile_fake import Tile
-from zimp.domain.common.game_mode import GameMode
+from zimp.domain.common.mode import Mode
 from zimp.domain.common.tile_effect import TileEffect
 
 # =================== Setup ===================
@@ -96,7 +96,7 @@ def test_zombie_card_spawns_zombies(handler, state, tile):
 
     assert effect.effect_type == EffectType.ZOMBIES
     assert effect.value == 4
-    assert state.get_mode() == GameMode.COMBAT
+    assert state.get_mode() == Mode.COMBAT
 
 def test_item_card_changes_mode_to_search(handler, state, tile):
     state.advance_time()
@@ -105,7 +105,7 @@ def test_item_card_changes_mode_to_search(handler, state, tile):
     effect = handler.draw_and_resolve_card(state, tile)
 
     assert effect.effect_type == EffectType.ITEM
-    assert state.get_mode() == GameMode.SEARCH_FOR_ITEM
+    assert state.get_mode() == Mode.SEARCH_FOR_ITEM
 
 def test_resolve_attack_changes_hp_correctly(handler, state, tile):
     start_hp = state.get_hp()
@@ -125,7 +125,7 @@ def test_search_for_item_returns_item(handler, state):
     item = handler.search_for_item(state)
 
     assert item == TEST_ITEM_ID
-    assert state.get_mode() == GameMode.FOUND_ITEM
+    assert state.get_mode() == Mode.FOUND_ITEM
 
 def test_resolve_attack_when_player_is_stronger_than_zombies(handler, state, tile):
     start_hp = state.get_hp()
@@ -182,7 +182,7 @@ def test_end_turn_item_changes_mode(handler, state, tile):
 
     handler.end_turn(state, tile)
 
-    assert state.get_mode() == GameMode.SEARCH_FOR_ITEM
+    assert state.get_mode() == Mode.SEARCH_FOR_ITEM
 
 def test_end_turn_find_totem_finds_totem(handler, state, tile):
     start_totem = state.has_got_totem()
