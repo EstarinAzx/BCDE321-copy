@@ -221,14 +221,6 @@ class GameMap:
 
         return Result.success(new_pos)
 
-    def __create_zombie_door(self, direction: Direction) -> None:
-        """Creates zombie door on the current tile and adds zombies.
-        Args:
-            direction (Direction): Direction of zombie door.
-        """
-        self.__last_added_tile.add_zombie_door(direction)
-        self.add_zombies(3)
-
     def __handle_move_to_blank_tile(self, direction: Direction, current_tile: Tile,
                                     destination_position: tuple[int, int]) -> ErrorCode | None:
         """Handles move to blank tile.

@@ -12,17 +12,26 @@ from zimp.support.movement.fake_game_mode import GameMode
 class MovementContract(Protocol):
     """Contract for movement"""
 
-    def move_player(self, mode: GameMode, direction: Direction) -> Result:
-        """Move player in given direction"""
+    def move(self, direction: Direction) -> ErrorCode | None:
+        """Attempt to move the player in the given direction"""
 
-    def rotate_placement_tile(self, mode: GameMode) -> ErrorCode | None:
+    def flee(self, direction: Direction) -> ErrorCode | None:
+        """Attempt to flee the player in the given direction"""
+
+    def create_zombie_door(self, direction: Direction) -> ErrorCode | None:
+        """Attempt to create a zombie door in the given direction"""
+
+    def rotate_placement_tile(self) -> ErrorCode | None:
         """Rotate the placement tile"""
 
-    def lock_placement_tile(self, mode: GameMode) -> ErrorCode | None:
+    def lock_placement_tile(self) -> ErrorCode | None:
         """Lock the rotation of the placement tile"""
 
     def need_zombie_door(self) -> bool:
         """Check if map needs a zombie door"""
+
+    def is_placement_mode_on(self) -> bool:
+        """Check if the placement mode is on"""
 
     def get_tile_data(self) -> list[TileData]:
         """Get data for displayed tiles"""
