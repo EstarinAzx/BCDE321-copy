@@ -1,9 +1,9 @@
 import pytest
-from zimp.domain.events.event_handler import EventHandler
-from zimp.domain.events.dev_card import DevCard, CardEffect, EffectType
+from zimp.domain.actions.action_handler import EventHandler
+from zimp.domain.actions.dev_card import DevCard, CardEffect, EffectType
 from zimp.support.events.current_state_fake import CurrentState
 from zimp.support.events.tile_fake import Tile
-from zimp.domain.common.mode import Mode
+from zimp.domain.common.game_mode import Mode
 from zimp.domain.common.tile_effect import TileEffect
 
 # =================== Setup ===================

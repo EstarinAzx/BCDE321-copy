@@ -1,12 +1,11 @@
 from zimp.domain.contracts import MovementGateway
-from zimp.domain.common.contract_events import EventsContract
+
 
 class GameController:
-    """Thin, testable boundary between Tkinter events and domain behaviour."""
+    """Thin, testable boundary between Tkinter actions and domain behaviour."""
 
-    def __init__(self, movement: MovementGateway, events: EventsContract) -> None:
+    def __init__(self, movement: MovementGateway) -> None:
         self._movement = movement
-        self._events = events
 
     def handle_move(self, direction: str) -> str:
         try:

@@ -1,1 +1,1 @@
-"""Support classes used by events"""
+"""Support classes used by actions"""

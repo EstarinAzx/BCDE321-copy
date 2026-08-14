@@ -2,7 +2,7 @@ import tkinter as tk
 
 from zimp.domain.basic_movement import BasicMovement
 from zimp.domain.game_state import GameState
-from zimp.domain.events.event_handler import EventHandler
+from zimp.domain.actions.action_handler import EventHandler
 from zimp.integration.game_controller import GameController
 from zimp.ui.tk_app import TkGameView
 

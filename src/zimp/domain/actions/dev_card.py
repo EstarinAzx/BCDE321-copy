@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 
-class EffectType(Enum):
+class CardEffectType(Enum):
     NONE = auto()
-    HP = auto()
+    HEALTH = auto()
     ZOMBIES = auto()
     ITEM = auto()
 
 @dataclass(frozen=True)
 class CardEffect:
-    effect_type: EffectType
+    effect_type: CardEffectType
     value: int = 0
 
 @dataclass(frozen=True)
