@@ -8,8 +8,7 @@ from zimp.domain.movement.tile_data import TileData
 from zimp.domain.movement.tile_effect import TileEffect
 from zimp.domain.movement.tile_manager import TileManager
 from zimp.domain.movement.validators import is_valid_point_type, is_valid_point_within_range, validate_map_and_position, \
-    is_move_valid
-from zimp.support.movement.fake_game_mode import GameMode
+    is_move_valid, is_valid_direction
 
 
 class GameMap:
@@ -56,6 +55,7 @@ class GameMap:
         self.__display_tiles: dict[tuple[int, int], Tile] = {}
         self.__player_position: tuple[int, int]
         # tile placement details
+        self.__is_placement_mode_on: bool
         self.__player_is_outside: bool
         self.__last_added_tile: Tile
         self.__last_move_direction: Direction
@@ -67,6 +67,7 @@ class GameMap:
     def __setup(self) -> None:
         """Sets up the game map."""
         self.__player_is_outside = False
+        self.__is_placement_mode_on = False
         self.__player_position = self.__starting_position
 
         self.__add_tile(self.__starting_position)  # add start tile
@@ -268,90 +269,116 @@ class GameMap:
         self.__player_position = destination_position
         return None  # no error - move was success
 
-    def move_player(self, mode: GameMode, direction: Direction) -> Result:
+    def __move_player(self, direction: Direction, is_flee: bool) -> ErrorCode | None:
         """Attempts to move the player in the given direction.
 
-        The method does different actions depending on the mode:
-        MOVE:
-            Sets up tile placement if move is valid and destination is empty.
-            Moves player if destination is known and move is valid.
-        COMBAT:
-            Moves player if destination is known and move is valid.
-        ZOMBIE_DOOR:
-            Adds zombie door and zombies on the current tile if the move is valid and the destination is empty.
+         The method does different actions depending on the mode:
+         MOVE (NOT FLEE):
+             Turns ON tile placement if move is valid and destination is empty.
+             Moves player if destination is known and move is valid.
+         FLEE:
+             Moves player if destination is known and move is valid.
 
-        Args:
-            mode (GameMode): Current game mode.
-            direction (Direction): Direction the player wants to move.
-        Returns:
-              Result: Success - Needed GameMode or None. | Fail - ErrorCode.
-        """
-        # return error if game mode or direction is invalid
-        if mode not in (GameMode.MOVE, GameMode.COMBAT, GameMode.ZOMBIE_DOOR):
-            return Result.fail(ErrorCode.INVALID_VALUE_GAME_MODE)
-        if direction not in Direction:
-            return Result.fail(ErrorCode.INVALID_VALUE_DIRECTION)
+         Args:
+             direction (Direction): Direction the player wants to move.
+             is_flee (bool): If the player is fleeing or not.
+         Returns:
+               ErrorCode: If something went wrong. | None: If nothing went wrong.
+         """
+        if self.__is_placement_mode_on:
+            return ErrorCode.INVALID_ACTION_PLACEMENT_MODE_ON
+
+        if not is_valid_direction(direction):
+            return ErrorCode.INVALID_VALUE_DIRECTION
 
         # get tile player is currently on
         current_tile = self.__display_tiles.get(self.__player_position)
         if current_tile is None:
-            return Result.fail(ErrorCode.FATAL_ERROR)  # tile player is on is missing
+            return ErrorCode.FATAL_ERROR  # tile player is on is missing
 
         # get new position
         destination_position_result = self.__calculate_position(self.__player_position, direction)
         if destination_position_result.is_fail():
-            return destination_position_result  # error when trying to get position
+            return destination_position_result.get_error_code()  # error when trying to get position
 
         # get dest position and tile
         destination_position = destination_position_result.get_data()
         destination_tile = self.__display_tiles.get(destination_position)
-        match mode:
-            case GameMode.MOVE:
-                if destination_tile is None:
-                    # move to blank tile
-                    error = self.__handle_move_to_blank_tile(direction, current_tile, destination_position)
-                    if error is not None:
-                        return Result.fail(error)  # invalid move
-                    else:
-                        return Result.success(GameMode.PLACEMENT)  # placement game mode needed
-                else:
-                    # move to known tile
-                    error = self.__handle_move_to_known_tile(direction, destination_tile, current_tile,
-                                                             destination_position)
-                    if error is not None:
-                        return Result.fail(error)  # invalid move
-                    else:
-                        return Result.success(None)  # successful move no mode needed
-            case GameMode.COMBAT:
-                if destination_tile is None:
-                    return Result.fail(ErrorCode.INVALID_MOVE_FLEE_TO_UNKNOWN_TILE)  # cant flee to unknown tile
-                else:
-                    # flee to known tile
-                    error = self.__handle_move_to_known_tile(direction, destination_tile, current_tile,
-                                                             destination_position)
-                    if error is not None:
-                        return Result.fail(error)  # invalid move
-                    else:
-                        return Result.success(GameMode.FLED)  # fled game mode needed
-            case GameMode.ZOMBIE_DOOR:
-                if destination_tile is None:
-                    # create zombie door opening to desired destination
-                    self.__create_zombie_door(direction)
-                    return Result.success(None)  # no mode needed
-                else:
-                    return Result.fail(ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE)  # cant make door to known tile
 
-    def rotate_placement_tile(self, mode: GameMode) -> ErrorCode | None:
-        """Rotates the currently placeable tile.
+        if destination_tile is None:
+            if is_flee:
+                return ErrorCode.INVALID_MOVE_FLEE_TO_UNKNOWN_TILE  # cant flee to unknown tile
+
+            # move to blank tile, return any error
+            error = self.__handle_move_to_blank_tile(direction, current_tile, destination_position)
+            if error is not None:
+                return error
+
+            self.__is_placement_mode_on = True  # placement mode ON
+            return None
+
+        else:
+            # move to known tile, return any error
+            return self.__handle_move_to_known_tile(direction, destination_tile, current_tile,
+                                                    destination_position)
+
+    def move(self, direction: Direction) -> ErrorCode | None:
+        """Attempts to move the player in the given direction.
         Args:
-            mode (GameMode): Current game mode.
+            direction (Direction): Direction player is trying to move.
         Returns:
-            ErrorCode: If GameMode is not PLACEMENT or the tile is locked. | None: If nothing went wrong.
+            ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        # return error if not in placement mode
-        if mode != GameMode.PLACEMENT:
-            return ErrorCode.INVALID_MODE_ROTATE_TILE
+        return self.__move_player(direction, False)
 
+    def flee(self, direction: Direction) -> ErrorCode | None:
+        """Attempts to flee the player in the given direction.
+        Args:
+            direction (Direction): Direction player is trying to move.
+        Returns:
+            ErrorCode: If something went wrong. | None: If nothing went wrong.
+        """
+        return self.__move_player(direction, True)
+
+    def create_zombie_door(self, direction: Direction) -> ErrorCode | None:
+        """Attempts to create a zombie door in the given direction.
+
+         If the destination is empty and valid a zombie door is created and
+         three zombies are added to the current tile.
+
+         Args:
+             direction (Direction): Direction the player wants to move.
+         Returns:
+               ErrorCode: If something went wrong. | None: If nothing went wrong.
+         """
+        if self.__is_placement_mode_on:
+            return ErrorCode.INVALID_ACTION_PLACEMENT_MODE_ON
+
+        if not is_valid_direction(direction):
+            return ErrorCode.INVALID_VALUE_DIRECTION
+
+        # get new position
+        destination_position_result = self.__calculate_position(self.__player_position, direction)
+        if destination_position_result.is_fail():
+            return destination_position_result.get_error_code()  # error when trying to get position
+
+        # get dest position and tile
+        destination_position = destination_position_result.get_data()
+        destination_tile = self.__display_tiles.get(destination_position)
+
+        if destination_tile is not None:
+            return ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE  # cant make door to known tile
+
+        # add zombie door and zombies
+        self.__last_added_tile.add_zombie_door(direction)
+        self.add_zombies(3)
+        return None  # no error
+
+    def rotate_placement_tile(self) -> ErrorCode | None:
+        """Rotates the currently placeable tile.
+        Returns:
+            ErrorCode: If the tile is locked. | None: If nothing went wrong.
+        """
         # cannot rotate if locked
         if self.__last_added_tile.is_locked():
             return ErrorCode.INVALID_ACTION_ROTATE_LOCKED_TILE
@@ -361,20 +388,19 @@ class GameMap:
         self.__calculate_placement_tile_rotation()
         return None  # success
 
-    def lock_placement_tile(self, mode: GameMode) -> ErrorCode | None:
-        """Locks the placement of the currently placeable tile.
-        Args:
-            mode (GameMode): Current game mode.
+    def lock_placement_tile(self) -> ErrorCode | None:
+        """Locks the placement of the currently placeable tile and move the player to it.
         Returns:
-            ErrorCode: If GameMode is not PLACEMENT. | None: If nothing went wrong.
+            ErrorCode: If the tile is locked. | None: If nothing went wrong.
         """
-        # return error if not in placement mode
-        if mode != GameMode.PLACEMENT:
-            return ErrorCode.INVALID_MODE_LOCK_TILE
+        # cannot rotate if locked
+        if self.__last_added_tile.is_locked():
+            return ErrorCode.INVALID_ACTION_LOCK_LOCKED_TILE
 
         # lock tile placement and move player
         self.__last_added_tile.lock()
         self.__player_position = self.__last_move_destination_position
+        self.__is_placement_mode_on = False  # placement mode OFF
         return None  # success
 
     def need_zombie_door(self) -> bool:
@@ -410,6 +436,13 @@ class GameMap:
 
                     return False  # if any door opens to a blank tile then no need for zombie door
         return True  # if NO doors open to blank tiles then a zombie door is needed
+
+    def is_placement_mode_on(self) -> bool:
+        """Checks if the placement mode is on.
+        Returns:
+            bool: True if the placement mode is on, False otherwise.
+        """
+        return self.__is_placement_mode_on
 
     def get_tile_data(self) -> list[TileData]:
         """Gets the data for all the tiles being displayed.

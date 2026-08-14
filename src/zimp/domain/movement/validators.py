@@ -3,6 +3,14 @@ from zimp.domain.movement.direction import Direction
 from zimp.domain.movement.tile import Tile
 
 
+def is_valid_direction(value: Direction) -> bool:
+    """Checks if the given value is a valid direction.
+    Returns:
+        bool: True if the given value is a valid direction, False otherwise.
+    """
+    return isinstance(value, Direction)
+
+
 def is_valid_point_type(value: tuple[int, int]) -> bool:
     """Checks if the given value is a valid point type of (int, int).
     Args:
