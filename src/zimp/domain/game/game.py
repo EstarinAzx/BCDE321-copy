@@ -1,197 +1,238 @@
-from zimp.domain.common.action_result import ActionResult
-from zimp.domain.common.action_result_type import ActionResultType
 from zimp.domain.common.direction import Direction
+from zimp.domain.common.error_code import ErrorCode
+from zimp.domain.common.result import Result
 
-from zimp.support.game.game_state_contract_fake import GameStateContract
-from zimp.support.game.items_contract_fake import ItemsContract
-#from zimp.support.game.actions_contract_fake import ActionsContract
-from zimp.support.game.movement_contract_fake import MovementContract
+from zimp.domain.common.contract_items import ItemsContract
+from zimp.domain.common.contract_movement import MovementContract
+from zimp.domain.common.contract_events import EventsContract
+from zimp.domain.common.contract_game_state import GameStateContract
 
-from zimp.domain.common.contract_actions import ActionsContract
+from zimp.domain.common.ItemCode import ItemCode
+
 
 class Game:
     """Boundary class connecting the controller to domain components"""
 
     def __init__(self,
                  state: GameStateContract,
-                 actions: ActionsContract,
+                 movement: MovementContract,
                  items: ItemsContract,
-                 movement: MovementContract
+                 events: EventsContract
                  ) -> None:
         self._state = state
-        self._actions = actions
+        self._events = events
         self._items = items
         self._movement = movement
 
-        self._setup_actions()
-
         self.reset()
 
-    def _add_action_result(self, result_type: ActionResultType, function_reference: object) -> None:
-        """Add a result type to the action result map"""
-        self._action_result_map[result_type] = function_reference
+    def _draw_event_card(self) -> Result:
+        draw_result, shuffled = self._events.draw_event(self._state.get_time())
+        if not draw_result.is_fail():
+            self._state.apply_card_effect(draw_result.get_data())
+            if shuffled:
+                self._state.advance_time()
 
-    def _setup_actions(self) -> None:
-        """Initialize the action result map"""
-        self._action_result_map = {}
+        return draw_result
 
-        self._add_action_result(ActionResultType.NONE, None)
+    def _do_post_event_checks(self) -> None:
+        if self._movement.need_zombie_door():
+            self._state.start_zombie_door()
 
-        self._add_action_result(ActionResultType.ADD_ZOMBIES, self._movement.add_zombies)
-        self._add_action_result(ActionResultType.DEFEAT_ZOMBIES, self._defeat_zombies)
-        self._add_action_result(ActionResultType.FLEE_ZOMBIES, self._flee_zombies)
-
-        self._add_action_result(ActionResultType.SEARCH_ITEM, self._state.start_search_for_item)
-        self._add_action_result(ActionResultType.FOUND_ITEM, self._state.find_item)
-        self._add_action_result(ActionResultType.CHANGE_HP, self._state.change_hp)
-        self._add_action_result(ActionResultType.FIND_TOTEM, self._take_totem)
-        self._add_action_result(ActionResultType.BURY_TOTEM, self._bury_totem)
-
-    # ---------
-
-    def _parse_action_result(self, result: ActionResult) -> None:
-        """Execute the corresponding method from the action result map"""
-        if result.result_type is ActionResultType.NONE:
-            return
-
-        handler = self._action_result_map[result.result_type]
-        if result.value is None:
-            handler()
-        else:
-            handler(result.value)
-
-    def _update_stats_from_items(self):
-        """Update components when items have changed"""
-        items = self._items.get_items()
-        self._state.update_stats(items)
-
-    def _flee_zombies(self, hp_change: int) -> None:
-        """Update components when zombies are fled"""
-        self._state.flee_zombies()
-        self._state.change_hp(hp_change)
-    def _defeat_zombies(self, hp_change: int) -> None:
-        """Update components when zombies are defeated"""
-        self._movement.defeat_zombies()
-        self._state.change_hp(hp_change)
-
-    def _take_totem(self) -> None:
-        """Take the totem"""
-        action_result = self._actions.draw_and_resolve_card()
-        self._parse_action_result(action_result)
-        self._state.take_totem()
-
-    def _bury_totem(self) -> None:
-        """Bury the totem"""
-        action_result = self._actions.draw_and_resolve_card()
-        self._parse_action_result(action_result)
-        self._state.bury_totem()
-
-    # --------
+        if self._state.get_has_ended_turn():
+            self._state.start_new_turn()
 
     def reset(self) -> None:
         """Reset all game components"""
-        self._actions.reset()
+        self._state.reset()
+        self._events.reset()
         self._movement.reset()
         self._items.reset()
-        self._state.reset()
 
-    def move_player(self, direction: Direction) -> None:
+    def move_player(self, direction: Direction) -> Result:
         """Attempt to move the player in a given direction"""
-        mode = self._state.get_mode()
+        if not self._state.get_can_move():
+            return Result.fail(ErrorCode.CANT_MOVE_NOW)
 
-        self._movement.move_player(mode, direction)
+        move_attempt = self._movement.move(direction)
+        if not move_attempt.is_fail():
+            self._state.start_move()
 
-    def rotate_tile(self, direction: Direction) -> None:
+        return move_attempt
+
+    def rotate_tile(self) -> Result:
         """Rotate the drawn tile in a given direction"""
-        mode = self._state.get_mode()
+        if not self._state.get_is_moving():
+            return Result.fail(ErrorCode.CANT_ROTATE_NOW)
 
-        self._movement.rotate_placement_tile(mode, direction)
+        return self._movement.rotate_placement_tile()
 
-    def place_tile(self, direction: Direction) -> None:
+    def place_tile(self) -> Result:
         """Attempt to place the drawn tile"""
-        mode = self._state.get_mode()
+        if not self._state.get_is_moving():
+            return Result.fail(ErrorCode.CANT_PLACE_NOW)
 
-        placed = self._movement.lock_placement_tile(mode, direction)
-        if not placed:
-            return
+        place_move = self._movement.lock_placement_tile()
+        if place_move.is_fail():
+            return place_move
 
-        action_result = self._actions.resolve_moved()
-        self._parse_action_result(action_result)
-        self._state.update_state()
+        self._state.end_move()
 
-        self._state.check_win_loss(self._actions.is_time_up())
+        return self._draw_event_card()
 
-    def pick_zombie_door_attack(self, direction: str) -> None:
+    def pick_zombie_door(self, direction: Direction) -> Result:
         """Trigger a zombie door attack in the selected direction"""
-        self._movement.pick_zombie_breakthrough(direction)
+        if not self._state.get_is_zombie_door():
+            return Result.fail(ErrorCode.NOT_ZOMBIE_DOOR)
 
-    def attack(self) -> None:
+        pick_door = self._movement.pick_zombie_door(direction)
+        if not pick_door.is_fail():
+            self._state.confirm_zombie_door()
+
+        return pick_door
+
+    def attack(self, use_chainsaw: bool = False, instant_kill:bool = False) -> Result:
         """Fight any zombies on the current tile"""
-        num_zombies = self._movement.get_zombie_count()
-        attack = self._state.get_attack()
+        if not self._state.get_can_attack():
+            return Result.fail(ErrorCode.CANT_ATTACK)
 
-        action_result = self._actions.resolve_attack(num_zombies, attack)
-        self._parse_action_result(action_result)
+        if instant_kill:
+            instant_kill_attempt = self._items.try_use_instant_kill()
+            if instant_kill_attempt.is_fail():
+                return instant_kill_attempt
 
-        self._state.check_win_loss(self._actions.is_time_up())
+        attack_bonus = self._items.attack_bonus(use_chainsaw)
 
-    def flee(self, direction, with_oil: bool) -> None:
+        self._state.attack(attack_bonus, instant_kill)
+        self._items.record_battle()
+
+        self._do_post_event_checks()
+
+        return Result.success(None)
+
+    def flee(self, direction: Direction, with_oil: bool = False) -> Result:
         """Flee to a previously explored tile"""
-        if not self._movement.can_flee(direction):
-            return
+        if not self._state.get_can_flee():
+            return Result.fail(ErrorCode.CANT_FLEE)
 
-        mode = self._state.get_mode()
-        num_zombies = self._movement.get_zombie_count()
+        if with_oil and not self._items.get_has_oil():
+            return Result.fail(ErrorCode.NO_OIL)
 
-        action_result = self._actions.resolve_flee(num_zombies, with_oil)
-        self._parse_action_result(action_result)
-        self._movement.move_player(mode, direction)
+        flee_move = self._movement.flee_zombies(direction)
+        if flee_move.is_fail():
+            return flee_move
 
-        self._state.check_win_loss(self._actions.is_time_up())
+        self._state.flee(with_oil)
 
-    def cower(self) -> None:
-        """Hide and cower to regain hp"""
-        action_result = self._actions.resolve_cower()
-        self._parse_action_result(action_result)
+        if with_oil:
+            self._items.use_item(ItemCode.OIL)
 
-        self._state.check_win_loss(self._actions.is_time_up())
+        self._do_post_event_checks()
+        return Result.success(None)
 
-    def end_turn(self) -> None:
-        """End the current turn"""
-        tile_effect = self._movement.get_tile_effect()
-
-        action_result = self._actions.end_turn(tile_effect)
-        self._parse_action_result(action_result)
-
-        self._state.check_win_loss(self._actions.is_time_up())
-
-    def perform_search_for_item(self) -> None:
+    def perform_search_for_item(self) -> Result:
         """Draw a new card to find an item"""
-        action_result = self._actions.search_for_item()
-        self._parse_action_result(action_result)
+        if not self._state.get_is_searching_item():
+            return Result.fail(ErrorCode.CANT_SEARCH_NOW)
 
-        self._state.check_win_loss(self._actions.is_time_up())
+        draw_result, shuffled = self._events.draw_item()
+        if not draw_result.is_fail():
+            self._items.find_item(draw_result.get_data())
+            self._state.find_item()
 
-    def ignore_search_for_item(self) -> None:
+            if shuffled:
+                self._state.advance_time()
+
+        return draw_result
+
+    def ignore_search_for_item(self) -> Result:
         """Choose not to draw a card to find an item"""
-        self._state.ignore_search_for_item()
+        if not self._state.get_is_searching_item():
+            return Result.fail(ErrorCode.CANT_SEARCH_NOW)
 
-    def take_item(self, item_id: int) -> None:
+        self._state.end_searching_item()
+
+        self._do_post_event_checks()
+
+        return Result.success(None)
+
+    def take_item(self) -> Result:
         """Add the found item to the items"""
-        self._items.add(item_id)
+        if not self._state.get_has_found_item():
+            return Result.fail(ErrorCode.HAVENT_FOUND_ITEM)
 
-        self._update_stats_from_items()
+        add_item = self._items.keep_found_item() # Should return error if an item hasn't been found or no space
+        if add_item.is_fail():
+            return add_item
 
-    def discard_item(self, slot_id: int) -> None:
+        self._state.end_found_item()
+
+        self._do_post_event_checks()
+
+        return Result.success(None)
+
+    def dont_take_item(self) -> Result:
+        if not self._state.get_has_found_item():
+            return Result.fail(ErrorCode.HAVENT_FOUND_ITEM)
+
+        self._items.dont_take_item()
+        self._state.end_found_item()
+
+        self._do_post_event_checks()
+
+        return Result.success(None)
+
+    def discard_item(self, slot_id: int = -1) -> Result:
         """Discard the chosen item from the items"""
-        self._items.discard(slot_id)
+        discard_result = self._items.discard(slot_id)
+        if discard_result.is_fail():
+            return discard_result
 
-        self._update_stats_from_items()
+        discarded, shuffled = discard_result.get_data()
+        if shuffled:
+            self._state.advance_time()
 
-    def use_item(self, item_id) -> None:
-        """Use the chosen item"""
-        mode = self._state.get_mode()
-        self._items.use(mode, item_id)
+        return discarded
 
-        self._update_stats_from_items()
+    def use_item(self, item_id: int) -> Result:
+        """Use the chosen item (gasoline or soda)"""
+        use = self._items.use(item_id)
+        if not use.is_fail():
+            if item_id == ItemCode.SODA:
+                self._state.drink_soda()
 
+        return use
+
+    def end_turn(self, is_cower: bool = False) -> Result:
+        """End the current turn, optionally cowering"""
+        if not self._state.get_can_end_turn():
+            return Result.fail(ErrorCode.CANT_END_TURN_NOW)
+
+        if is_cower:
+            cower_action = self._state.cower()
+            if cower_action.is_fail():
+                return cower_action
+
+            cower_event, shuffled = self._events.waste_time()
+            if cower_event.is_fail():
+                return cower_event
+            if shuffled:
+                self._state.advance_time()
+
+        tile_effect = self._movement.get_tile_effect()
+        self._state.do_end_turn_effect(tile_effect)
+
+        if self._state.get_is_doing_events():
+            return self._draw_event_card()
+        else:
+            self._state.start_new_turn()
+            return Result.success(None)
+
+    def check_win_loss(self) -> Result:
+        """To be called after each action; determines if the player has won or lost"""
+        if self._state.check_is_won():
+            return Result.success("You win!")
+        elif self._state.check_is_lost():
+            return Result.success("You lose!")
+
+        return Result.fail(ErrorCode.NOT_WON_OR_LOST)

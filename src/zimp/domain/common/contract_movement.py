@@ -1,39 +1,34 @@
-from dataclasses import dataclass
-from enum import Enum
 from typing import runtime_checkable, Protocol
 
-from zimp.domain.common.error_code import ErrorCode
+from zimp.domain.common.direction import Direction
 from zimp.domain.common.result import Result
 from zimp.domain.common.tile_effect import TileEffect
-from zimp.domain.common.game_mode import GameMode
-from zimp.domain.common.direction import Direction
 
-
-@dataclass(frozen=True)
-class TileData:
-    """TileData class used to hold essential information about individual tiles."""
-    id: int
-    position: tuple[int, int]
-    rotation: Direction
-    zombie_door: Direction | None
-    zombie_count: int
-    is_locked: bool
 
 @runtime_checkable
 class MovementContract(Protocol):
     """Contract for movement"""
 
-    def move_player(self, mode: GameMode, direction: Direction) -> Result:
-        """Move player in given direction"""
+    def move(self, direction: Direction) -> Result:
+        """Attempt to move the player in the given direction"""
 
-    def rotate_placement_tile(self, mode: GameMode) -> ErrorCode | None:
+    def flee(self, direction: Direction) -> Result:
+        """Attempt to flee the player in the given direction"""
+
+    def create_zombie_door(self, direction: Direction) -> Result:
+        """Attempt to create a zombie door in the given direction"""
+
+    def rotate_placement_tile(self) -> Result:
         """Rotate the placement tile"""
 
-    def lock_placement_tile(self, mode: GameMode) -> ErrorCode | None:
+    def lock_placement_tile(self) -> Result:
         """Lock the rotation of the placement tile"""
 
     def need_zombie_door(self) -> bool:
         """Check if map needs a zombie door"""
+
+    def is_placement_mode_on(self) -> bool:
+        """Check if the placement mode is on"""
 
     def get_tile_data(self) -> list[TileData]:
         """Get data for displayed tiles"""
@@ -57,5 +52,11 @@ class MovementContract(Protocol):
         """Get the map dimensions"""
 
     def reset(self, map_dimensions: tuple[int, int] | None = None, starting_position: tuple[int, int] | None = None,
-              randomizer_seed: int | None = None) -> ErrorCode | None:
+              randomizer_seed: int | None = None) -> Result:
         """Reset tiles and optionally set map dimensions, player starting position, and/or tile randomizer seed"""
+
+    # new methods
+    def pick_zombie_door(self, direction: Direction) -> Result:
+        pass
+    def flee_zombies(self, direction: Direction) -> Result:
+        pass

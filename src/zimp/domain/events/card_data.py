@@ -1,4 +1,4 @@
-from zimp.domain.actions.dev_card import DevCard, CardEffect, CardEffectType
+from zimp.domain.common.dev_card import DevCard, CardEffect, CardEffectType
 
 CARD_DATA = (
     DevCard(
