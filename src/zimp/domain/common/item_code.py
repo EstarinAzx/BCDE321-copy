@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class ItemCode(Enum):
+    NONE = 0
     OIL = 1
     GASOLINE = 2
     BOARD_WITH_NAILS = 3

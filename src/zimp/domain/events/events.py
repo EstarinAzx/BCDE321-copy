@@ -73,7 +73,7 @@ class Events:
         """Reset the deck"""
         self._shuffle()
 
-    def get_remaining_card_count(self):
+    def get_remaining_card_count(self) -> int:
         """Get the number of dev cards currently in the deck"""
         return len(self._deck)
 

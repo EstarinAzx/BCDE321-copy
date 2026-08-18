@@ -2,7 +2,7 @@ import pytest
 
 from zimp.domain.common.direction import Direction
 from zimp.domain.common.error_code import ErrorCode
-from zimp.domain.common.ItemCode import ItemCode
+from zimp.domain.common.item_code import ItemCode
 from zimp.domain.common.result import Result
 from zimp.domain.game.game import Game
 

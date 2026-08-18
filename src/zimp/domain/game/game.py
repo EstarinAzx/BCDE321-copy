@@ -7,7 +7,7 @@ from zimp.domain.common.contract_movement import MovementContract
 from zimp.domain.common.contract_events import EventsContract
 from zimp.domain.common.contract_game_state import GameStateContract
 
-from zimp.domain.common.ItemCode import ItemCode
+from zimp.domain.common.item_code import ItemCode
 
 
 class Game:
@@ -49,91 +49,101 @@ class Game:
         self._movement.reset()
         self._items.reset()
 
-    def move_player(self, direction: Direction) -> Result:
+    def move_player(self, direction: Direction) -> ErrorCode | None:
         """Attempt to move the player in a given direction"""
         if not self._state.get_can_move():
-            return Result.fail(ErrorCode.CANT_MOVE_NOW)
+            return ErrorCode.CANT_MOVE_NOW
 
         move_attempt = self._movement.move(direction)
-        if not move_attempt.is_fail():
-            self._state.start_move()
+        if move_attempt is ErrorCode:
+            return move_attempt
 
-        return move_attempt
+        self._state.start_move()
+        return None
 
-    def rotate_tile(self) -> Result:
+    def rotate_tile(self) -> ErrorCode | None:
         """Rotate the drawn tile in a given direction"""
         if not self._state.get_is_moving():
-            return Result.fail(ErrorCode.CANT_ROTATE_NOW)
+            return ErrorCode.CANT_ROTATE_NOW
 
         return self._movement.rotate_placement_tile()
 
-    def place_tile(self) -> Result:
+    def place_tile(self) -> ErrorCode | None:
         """Attempt to place the drawn tile"""
         if not self._state.get_is_moving():
-            return Result.fail(ErrorCode.CANT_PLACE_NOW)
+            return ErrorCode.CANT_PLACE_NOW
 
         place_move = self._movement.lock_placement_tile()
-        if place_move.is_fail():
+        if place_move is ErrorCode:
             return place_move
 
         self._state.end_move()
 
-        return self._draw_event_card()
+        return self._draw_event_card().get_error_code()
 
-    def pick_zombie_door(self, direction: Direction) -> Result:
+    def pick_zombie_door(self, direction: Direction) -> ErrorCode | None:
         """Trigger a zombie door attack in the selected direction"""
         if not self._state.get_is_zombie_door():
-            return Result.fail(ErrorCode.NOT_ZOMBIE_DOOR)
+            return ErrorCode.NOT_ZOMBIE_DOOR
 
-        pick_door = self._movement.pick_zombie_door(direction)
-        if not pick_door.is_fail():
-            self._state.confirm_zombie_door()
+        pick_door = self._movement.create_zombie_door(direction)
+        if pick_door is ErrorCode:
+            return pick_door
 
-        return pick_door
+        self._state.confirm_zombie_door()
 
-    def attack(self, use_chainsaw: bool = False, instant_kill:bool = False) -> Result:
+        return None
+
+    def attack(self, use_chainsaw: bool = False, instant_kill:bool = False) -> ErrorCode | None:
         """Fight any zombies on the current tile"""
         if not self._state.get_can_attack():
-            return Result.fail(ErrorCode.CANT_ATTACK)
+            return ErrorCode.CANT_ATTACK
 
         if instant_kill:
-            instant_kill_attempt = self._items.try_use_instant_kill()
-            if instant_kill_attempt.is_fail():
-                return instant_kill_attempt
+            if self._items.get_has_instant_kill():
+                self._items.discard(0)
+                self._items.discard(1)
+            else:
+                return ErrorCode.NO_INSTANT_KILL
 
-        attack_bonus = self._items.attack_bonus(use_chainsaw)
+        attack_bonus_result = self._items.attack_bonus(use_chainsaw)
+        if attack_bonus_result.is_fail():
+            return attack_bonus_result.get_error_code()
 
+        attack_bonus = attack_bonus_result.get_data()
         self._state.attack(attack_bonus, instant_kill)
+
         self._items.record_battle()
 
         self._do_post_event_checks()
 
-        return Result.success(None)
+        return None
 
-    def flee(self, direction: Direction, with_oil: bool = False) -> Result:
+    def flee(self, direction: Direction, with_oil: bool = False) -> ErrorCode | None:
         """Flee to a previously explored tile"""
         if not self._state.get_can_flee():
-            return Result.fail(ErrorCode.CANT_FLEE)
+            return ErrorCode.CANT_FLEE
 
         if with_oil and not self._items.get_has_oil():
-            return Result.fail(ErrorCode.NO_OIL)
+            return ErrorCode.NO_OIL
 
-        flee_move = self._movement.flee_zombies(direction)
-        if flee_move.is_fail():
+        flee_move = self._movement.flee(direction)
+        if flee_move is ErrorCode:
             return flee_move
 
         self._state.flee(with_oil)
 
         if with_oil:
-            self._items.use_item(ItemCode.OIL)
+            self._items.use(ItemCode.OIL)
 
         self._do_post_event_checks()
-        return Result.success(None)
 
-    def perform_search_for_item(self) -> Result:
+        return None
+
+    def perform_search_for_item(self) -> ErrorCode | None:
         """Draw a new card to find an item"""
         if not self._state.get_is_searching_item():
-            return Result.fail(ErrorCode.CANT_SEARCH_NOW)
+            return ErrorCode.CANT_SEARCH_NOW
 
         draw_result, shuffled = self._events.draw_item()
         if not draw_result.is_fail():
@@ -143,65 +153,60 @@ class Game:
             if shuffled:
                 self._state.advance_time()
 
-        return draw_result
+        return draw_result.get_error_code()
 
-    def ignore_search_for_item(self) -> Result:
+    def ignore_search_for_item(self) -> ErrorCode | None:
         """Choose not to draw a card to find an item"""
         if not self._state.get_is_searching_item():
-            return Result.fail(ErrorCode.CANT_SEARCH_NOW)
+            return ErrorCode.CANT_SEARCH_NOW
 
         self._state.end_searching_item()
 
         self._do_post_event_checks()
 
-        return Result.success(None)
+        return None
 
-    def take_item(self) -> Result:
+    def take_item(self) -> ErrorCode | None:
         """Add the found item to the items"""
         if not self._state.get_has_found_item():
-            return Result.fail(ErrorCode.HAVENT_FOUND_ITEM)
+            return ErrorCode.HAVENT_FOUND_ITEM
 
-        add_item = self._items.keep_found_item() # Should return error if an item hasn't been found or no space
-        if add_item.is_fail():
+        add_item = self._items.keep_found_item()
+        if add_item is ErrorCode:
             return add_item
 
         self._state.end_found_item()
 
         self._do_post_event_checks()
 
-        return Result.success(None)
+        return None
 
-    def dont_take_item(self) -> Result:
+    def dont_take_item(self) -> ErrorCode | None:
+        """Abandon the item that was found"""
         if not self._state.get_has_found_item():
-            return Result.fail(ErrorCode.HAVENT_FOUND_ITEM)
+            return ErrorCode.HAVENT_FOUND_ITEM
 
         self._items.dont_take_item()
         self._state.end_found_item()
 
         self._do_post_event_checks()
 
-        return Result.success(None)
+        return None
 
-    def discard_item(self, slot_id: int = -1) -> Result:
+    def discard_item(self, slot_id: int = -1) -> ErrorCode | None:
         """Discard the chosen item from the items"""
-        discard_result = self._items.discard(slot_id)
-        if discard_result.is_fail():
-            return discard_result
+        return self._items.discard(slot_id)
 
-        discarded, shuffled = discard_result.get_data()
-        if shuffled:
-            self._state.advance_time()
-
-        return discarded
-
-    def use_item(self, item_id: int) -> Result:
+    def use_item(self, item_id: ItemCode) -> ErrorCode | None:
         """Use the chosen item (gasoline or soda)"""
         use = self._items.use(item_id)
-        if not use.is_fail():
-            if item_id == ItemCode.SODA:
-                self._state.drink_soda()
+        if use is ErrorCode:
+            return use
 
-        return use
+        if item_id == ItemCode.SODA:
+            self._state.drink_soda()
+
+        return None
 
     def end_turn(self, is_cower: bool = False) -> Result:
         """End the current turn, optionally cowering"""

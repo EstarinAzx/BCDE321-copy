@@ -29,6 +29,8 @@ class ErrorCode(Enum):
     CANT_ROTATE_NOW = auto()
     CANT_PLACE_NOW = auto()
     NOT_ZOMBIE_DOOR = auto()
+    NO_OIL = auto()
+    NO_INSTANT_KILL = auto()
     CANT_ATTACK = auto()
     CANT_FLEE = auto()
     HAVENT_FOUND_ITEM = auto()
@@ -40,8 +42,7 @@ class ErrorCode(Enum):
     ALREADY_COWERED = auto()
 
     """ITEM ERRORS"""
-    NO_OIL = auto()
-    NO_INSTANT_KILL = auto()
+    SLOT_EMPTY = auto()
     NO_GASOLINE = auto()
     NO_CHAINSAW = auto()
     NO_SODA = auto()
