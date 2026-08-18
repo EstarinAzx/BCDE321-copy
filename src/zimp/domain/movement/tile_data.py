@@ -10,5 +10,4 @@ class TileData:
     position: tuple[int, int]
     rotation: Direction
     zombie_door: Direction | None
-    zombie_count: int
     is_locked: bool

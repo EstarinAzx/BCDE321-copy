@@ -361,9 +361,8 @@ class GameMap:
         if destination_tile is not None:
             return ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE  # cant make door to known tile
 
-        # add zombie door and zombies
+        # add zombie door
         self.__last_added_tile.add_zombie_door(direction)
-        self.add_zombies(3)
         return None  # no error
 
     def rotate_placement_tile(self) -> ErrorCode | None:
@@ -452,24 +451,6 @@ class GameMap:
             tuple[int, int]: The players position.
         """
         return self.__player_position
-
-    def get_zombie_count(self) -> int:
-        """Gets the number of zombies on the tile the player is currently on.
-        Returns:
-            int: The number of zombies on the current tile.
-        """
-        return self.__display_tiles[self.__player_position].get_zombie_count()
-
-    def defeat_zombies(self) -> None:
-        """Defeats the zombies on the tile the player is currently on."""
-        self.__display_tiles[self.__player_position].defeat_zombies()
-
-    def add_zombies(self, number_of_zombies: int) -> None:
-        """Adds zombies to the tile the player is currently on.
-        Args:
-            number_of_zombies (int): The number of zombies to add.
-        """
-        self.__display_tiles[self.__player_position].add_zombies(number_of_zombies)
 
     def get_tile_effect(self) -> TileEffect:
         """Gets the tile effect of the tile the player is currently on.

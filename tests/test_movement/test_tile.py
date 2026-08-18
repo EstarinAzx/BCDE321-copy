@@ -4,29 +4,6 @@ from zimp.domain.movement.direction import Direction
 from zimp.domain.movement.tile import Tile
 
 
-def test_add_zombies_when_given_a_number_adds_zombies_to_count() -> None:
-    # Arrange
-    test_tile = Tile(1, (Direction.NORTH,))
-
-    # Act
-    test_tile.add_zombies(1)
-
-    # Assert
-    assert test_tile.get_zombie_count() == 1
-
-
-def test_defeat_zombies_clears_all_zombies() -> None:
-    # Arrange
-    test_tile = Tile(1, (Direction.NORTH,))
-    test_tile.add_zombies(6)
-
-    # Act
-    test_tile.defeat_zombies()
-
-    # Assert
-    assert test_tile.get_zombie_count() == 0
-
-
 @pytest.mark.parametrize("rotation_dir", [Direction.NORTH, Direction.WEST, Direction.SOUTH, Direction.EAST])
 def test_rotate_rotates_to_given_direction(rotation_dir) -> None:
     # Arrange
@@ -119,23 +96,19 @@ def test_reset_clears_data_back_to_default_values() -> None:
     # Arrange
     default_zombie_door_value = None
     default_rotation_value = Direction.NORTH
-    default_zombie_count_value = 0
     default_locked_value = False
     test_tile = Tile(1, (Direction.NORTH,))
     test_tile.add_zombie_door(Direction.NORTH)
     test_tile.rotate(Direction.WEST)
-    test_tile.add_zombies(5)
     test_tile.lock()
 
     # Act
     test_tile.reset()
     zombie_door_result = test_tile.get_data((1, 1)).zombie_door
     rotation_result = test_tile.get_rotation()
-    zombie_count_result = test_tile.get_zombie_count()
     locked_result = test_tile.is_locked()
 
     # Assert
     assert zombie_door_result == default_zombie_door_value
     assert rotation_result == default_rotation_value
-    assert zombie_count_result == default_zombie_count_value
     assert locked_result == default_locked_value

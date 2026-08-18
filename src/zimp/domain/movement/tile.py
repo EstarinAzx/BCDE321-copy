@@ -24,7 +24,6 @@ class Tile:
         self.__is_entry_tile = is_entry_tile
         self.__zombie_door = None
         self.__rotation = Direction.NORTH
-        self.__zombie_count = 0
         self.__is_locked = False
 
     def get_tile_effect(self) -> TileEffect:
@@ -32,9 +31,6 @@ class Tile:
 
     def get_rotation(self) -> Direction:
         return self.__rotation
-
-    def get_zombie_count(self) -> int:
-        return self.__zombie_count
 
     def is_outside(self) -> bool:
         return self.__is_outside_tile
@@ -50,12 +46,6 @@ class Tile:
 
     def lock(self) -> None:
         self.__is_locked = True
-
-    def add_zombies(self, number_of_zombies: int) -> None:
-        self.__zombie_count += number_of_zombies
-
-    def defeat_zombies(self) -> None:
-        self.__zombie_count = 0
 
     def rotate(self, direction: Direction) -> None:
         self.__rotation = direction
@@ -112,7 +102,6 @@ class Tile:
         """Resets the tiles mutable data to its default values."""
         self.__zombie_door = None
         self.__rotation = Direction.NORTH
-        self.__zombie_count = 0
         self.__is_locked = False
 
     def get_data(self, position: tuple[int, int]) -> TileData:
@@ -122,4 +111,4 @@ class Tile:
         Returns:
             TileData: the tiles data.
         """
-        return TileData(self.__id, position, self.__rotation, self.__zombie_door, self.__zombie_count, self.__is_locked)
+        return TileData(self.__id, position, self.__rotation, self.__zombie_door, self.__is_locked)

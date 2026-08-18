@@ -39,15 +39,6 @@ class MovementContract(Protocol):
     def get_player_position(self) -> tuple[int, int]:
         """Gets players position"""
 
-    def get_zombie_count(self) -> int:
-        """Get zombie count on current tile"""
-
-    def defeat_zombies(self) -> None:
-        """Defeat zombies on current tile"""
-
-    def add_zombies(self, number_of_zombies: int) -> None:
-        """Add zombies to current tile"""
-
     def get_tile_effect(self) -> TileEffect:
         """Get tile effect of current tile"""
 

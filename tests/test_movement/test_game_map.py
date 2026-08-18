@@ -167,19 +167,6 @@ def test_reset_clears_all_discovered_tiles() -> None:
     assert result is None
 
 
-def test_reset_clears_all_zombies() -> None:
-    # Arrange
-    movement = GameMap(map_dimensions=(5, 5), starting_position=(3, 3), randomizer_seed=42)
-    movement.add_zombies(3)
-
-    # Act
-    result = movement.reset()
-
-    # Assert
-    assert movement.get_zombie_count() == 0
-    assert result is None
-
-
 def test_move_when_given_valid_direction_move_to_empty_tile_returns_none_and_turns_on_placement_mode() -> None:
     # Arrange
     movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2))
@@ -243,23 +230,6 @@ def test_create_zombie_door_when_given_valid_direction_move_to_empty_tile_return
     # Assert
     assert move_error is None
     assert any(tile.id == second_tile_id and tile.zombie_door == move_direction for tile in tile_data)
-
-
-def test_create_zombie_door_when_given_valid_direction_move_to_empty_tile_adds_zombies_to_current_tile() -> None:
-    # Arrange
-    movement = GameMap(map_dimensions=(5, 5), starting_position=(2, 2), randomizer_seed=5)
-    move_direction = Direction.EAST
-    zombie_count = 3
-    movement.move(Direction.NORTH)
-    movement.lock_placement_tile()
-
-    # Act
-    move_error = movement.create_zombie_door(move_direction)
-    current_zombie_count = movement.get_zombie_count()
-
-    # Assert
-    assert move_error is None
-    assert current_zombie_count == zombie_count
 
 
 def test_need_zombie_door_when_normal_door_open_to_empty_tile_returns_false() -> None:
@@ -496,28 +466,6 @@ def test_get_tile_effect_returns_tile_effect_none_if_no_effect() -> None:
 
     # Assert
     assert effect_result == tile_effect
-
-
-def test_defeat_zombies_removes_all_zombies_only_on_current_tile() -> None:
-    # Arrange
-    movement = GameMap(map_dimensions=(5, 4), starting_position=(4, 1), randomizer_seed=42)
-    first_tile_z_count = 4
-    second_tile_z_count = 0
-    move_direction = Direction.SOUTH
-    movement.add_zombies(first_tile_z_count)
-    movement.move(Direction.NORTH)
-    movement.lock_placement_tile()
-    movement.add_zombies(first_tile_z_count)
-
-    # Act
-    movement.defeat_zombies()
-    second_tile_z_result = movement.get_zombie_count()
-    movement.move(move_direction)
-    first_tile_z_result = movement.get_zombie_count()
-
-    # Assert
-    assert first_tile_z_result == first_tile_z_count
-    assert second_tile_z_result == second_tile_z_count
 
 
 # ========================== Bad Day ========================== #
