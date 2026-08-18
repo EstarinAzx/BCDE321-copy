@@ -1,6 +1,6 @@
-from zimp.domain.movement.direction import Direction
-from zimp.domain.movement.tile_data import TileData
-from zimp.domain.movement.tile_effect import TileEffect
+from zimp.domain.common.direction import Direction
+from zimp.domain.common.tile_data import TileData
+from zimp.domain.common.tile_effect import TileEffect
 
 
 class Tile:

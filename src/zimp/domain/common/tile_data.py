@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from zimp.domain.movement.direction import Direction
+from zimp.domain.common.direction import Direction
 
 
 @dataclass(frozen=True)

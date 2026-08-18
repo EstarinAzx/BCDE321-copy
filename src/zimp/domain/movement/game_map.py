@@ -2,10 +2,10 @@ from typing import Final
 
 from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.result import Result
-from zimp.domain.movement.direction import Direction
+from zimp.domain.common.direction import Direction
 from zimp.domain.movement.tile import Tile
-from zimp.domain.movement.tile_data import TileData
-from zimp.domain.movement.tile_effect import TileEffect
+from zimp.domain.common.tile_data import TileData
+from zimp.domain.common.tile_effect import TileEffect
 from zimp.domain.movement.tile_manager import TileManager
 from zimp.domain.movement.validators import is_valid_point_type, is_valid_point_within_range, validate_map_and_position, \
     is_move_valid, is_valid_direction
@@ -335,8 +335,8 @@ class GameMap:
     def create_zombie_door(self, direction: Direction) -> ErrorCode | None:
         """Attempts to create a zombie door in the given direction.
 
-         If the destination is empty and valid a zombie door is created and
-         three zombies are added to the current tile.
+         If the destination is empty and valid a zombie door is created on the current
+         tile in the given direction.
 
          Args:
              direction (Direction): Direction the player wants to move.

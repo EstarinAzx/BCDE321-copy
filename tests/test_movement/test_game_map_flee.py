@@ -1,7 +1,7 @@
 import pytest
 
 from zimp.domain.common.error_code import ErrorCode
-from zimp.domain.movement.direction import Direction
+from zimp.domain.common.direction import Direction
 from zimp.domain.movement.game_map import GameMap
 
 

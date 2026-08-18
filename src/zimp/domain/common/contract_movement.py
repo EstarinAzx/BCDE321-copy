@@ -1,11 +1,9 @@
 from typing import runtime_checkable, Protocol
 
-from zimp.domain.movement.direction import Direction
+from zimp.domain.common.direction import Direction
 from zimp.domain.common.error_code import ErrorCode
-from zimp.domain.common.result import Result
-from zimp.domain.movement.tile_data import TileData
-from zimp.domain.movement.tile_effect import TileEffect
-from zimp.support.movement.fake_game_mode import GameMode
+from zimp.domain.common.tile_data import TileData
+from zimp.domain.common.tile_effect import TileEffect
 
 
 @runtime_checkable
