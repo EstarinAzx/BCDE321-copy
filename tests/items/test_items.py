@@ -181,3 +181,65 @@ def test_held_items_does_not_expose_the_inventory_to_mutation() -> None:
     inventory.held_items().append("chainsaw")
 
     assert inventory.held_items() == ["machete"]
+
+
+# Three additions that let a slot-based, chainsaw-aware caller drive the
+# same inventory the Tkinter shell drives. Existing behaviour is unchanged.
+
+
+def test_discarding_by_slot_removes_that_slot() -> None:
+    inventory = Inventory()
+    inventory.add("machete")
+    inventory.add("candle")
+
+    inventory.discard_slot(1)
+
+    assert inventory.held == ["machete"]
+
+
+def test_discarding_by_slot_removes_the_right_one_of_two_identical_items() -> None:
+    """Two machetes is a legal pocket, so a name cannot identify a slot."""
+    inventory = Inventory()
+    inventory.add("machete")
+    inventory.add("chainsaw")
+
+    inventory.discard_slot(0)
+
+    assert inventory.held == ["chainsaw"]
+
+
+def test_discarding_an_empty_slot_is_rejected() -> None:
+    inventory = Inventory()
+    inventory.add("machete")
+
+    with pytest.raises(ValueError):
+        inventory.discard_slot(1)
+
+    assert inventory.held == ["machete"]
+
+
+def test_refuelling_restores_a_spent_chainsaw() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+    for _ in range(Inventory.CHAINSAW_BATTLES):
+        inventory.record_battle()
+    assert inventory.attack_bonus() == 0
+
+    inventory.refuel_chainsaw()
+
+    assert inventory.attack_bonus() == 3
+
+
+def test_declining_the_chainsaw_falls_back_to_the_next_weapon() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+    inventory.add("machete")
+
+    assert inventory.attack_bonus(include_chainsaw=False) == 2
+
+
+def test_declining_the_chainsaw_with_no_other_weapon_gives_nothing() -> None:
+    inventory = Inventory()
+    inventory.add("chainsaw")
+
+    assert inventory.attack_bonus(include_chainsaw=False) == 0

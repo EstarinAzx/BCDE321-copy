@@ -9,6 +9,8 @@ into another component's state.
 Owned by items. Consumed by whoever resolves a SEARCH_FOR_ITEM result.
 """
 
+from zimp.domain.common.item_code import ItemCode
+
 # The nine items the rulebook defines. This is the inventory's vocabulary:
 # every id the rest of the game may hand to `ItemsContract.add`.
 #
@@ -48,6 +50,32 @@ IMPLEMENTED_ITEMS: frozenset[str] = frozenset(
 # Fill this in from the physical cards, then delete this comment. Until then
 # `item_id_for_card` refuses loudly, which is the failure we want.
 CARD_ITEM_IDS: dict[int, str] = {}
+
+
+# ItemCode -> inventory item id.
+#
+# Hayden's Game speaks `ItemCode`; the inventory holds names. This pair of
+# dictionaries is the entire translation, and it is the only place in Items
+# that knows another component's vocabulary.
+#
+# `ItemCode.NONE` is deliberately absent: it means "this pocket is empty",
+# not "this item", so it must never resolve to a name.
+ID_FOR_ITEM_CODE: dict[ItemCode, str] = {
+    ItemCode.OIL: "oil",
+    ItemCode.GASOLINE: "gasoline",
+    ItemCode.BOARD_WITH_NAILS: "board_with_nails",
+    ItemCode.MACHETE: "machete",
+    ItemCode.GRISLY_FEMUR: "grisly_femur",
+    ItemCode.GOLF_CLUB: "golf_club",
+    ItemCode.CHAINSAW: "chainsaw",
+    # The one place the two vocabularies disagree.
+    ItemCode.SODA: "can_of_soda",
+    ItemCode.CANDLE: "candle",
+}
+
+ITEM_CODE_FOR_ID: dict[str, ItemCode] = {
+    item_id: code for code, item_id in ID_FOR_ITEM_CODE.items()
+}
 
 
 def item_id_for_card(card_item: int) -> str:

@@ -1,8 +1,11 @@
 import pytest
 
+from zimp.domain.common.item_code import ItemCode
 from zimp.domain.common.item_ids import (
     CARD_ITEM_IDS,
+    ID_FOR_ITEM_CODE,
     IMPLEMENTED_ITEMS,
+    ITEM_CODE_FOR_ID,
     RULEBOOK_ITEMS,
     item_id_for_card,
 )
@@ -37,3 +40,31 @@ def test_an_unmapped_card_is_refused_rather_than_guessed() -> None:
 
     with pytest.raises(ValueError, match=str(unmapped)):
         item_id_for_card(unmapped)
+
+
+# Hayden's Game speaks ItemCode; the inventory speaks names. These two
+# dictionaries are the whole translation, and they are the only place in
+# Items that knows the other component's vocabulary.
+
+
+def test_every_item_code_names_a_rulebook_item() -> None:
+    assert set(ID_FOR_ITEM_CODE.values()) == set(RULEBOOK_ITEMS)
+
+
+def test_every_rulebook_item_has_a_code() -> None:
+    assert set(ITEM_CODE_FOR_ID) == set(RULEBOOK_ITEMS)
+
+
+def test_nothing_is_the_only_code_without_a_name() -> None:
+    """ItemCode.NONE marks an empty pocket, so it must not translate."""
+    assert set(ID_FOR_ITEM_CODE) == set(ItemCode) - {ItemCode.NONE}
+
+
+def test_translating_a_code_and_back_returns_the_same_code() -> None:
+    for code, item_id in ID_FOR_ITEM_CODE.items():
+        assert ITEM_CODE_FOR_ID[item_id] is code
+
+
+def test_the_soda_keeps_its_inventory_name() -> None:
+    """The two vocabularies disagree on this one item, and only this one."""
+    assert ID_FOR_ITEM_CODE[ItemCode.SODA] == "can_of_soda"
