@@ -1,1 +1,1 @@
-"""Shared files to be used by multiple different modules"""
+"""Common files and data."""
