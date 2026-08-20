@@ -17,36 +17,42 @@ class Game:
                  state: GameStateContract,
                  movement: MovementContract,
                  items: ItemsContract,
-                 events: EventsContract
+                 events: EventsContract,
+                 map_seed: int | None = None
                  ) -> None:
         self._state = state
         self._events = events
         self._items = items
         self._movement = movement
 
-        self.reset()
+        self.reset(map_seed)
 
-    def _draw_event_card(self) -> Result:
+    def _draw_event_card(self) -> ErrorCode | None:
         draw_result, shuffled = self._events.draw_event(self._state.get_time())
-        if not draw_result.is_fail():
-            self._state.apply_card_effect(draw_result.get_data())
-            if shuffled:
-                self._state.advance_time()
+        if draw_result.is_fail():
+            return draw_result.get_error_code()
 
-        return draw_result
+        print(draw_result.get_data())
+        self._state.apply_card_effect(draw_result.get_data())
+        if shuffled:
+            self._state.advance_time()
+
+        self._do_post_event_checks()
+
+        return None
 
     def _do_post_event_checks(self) -> None:
-        if self._movement.need_zombie_door():
-            self._state.start_zombie_door()
+        if self._state.get_can_end_turn():
+            if self._movement.need_zombie_door():
+                self._state.start_zombie_door()
+            elif self._state.get_has_ended_turn():
+                self._state.start_new_turn()
 
-        if self._state.get_has_ended_turn():
-            self._state.start_new_turn()
-
-    def reset(self) -> None:
+    def reset(self, map_seed: int | None = None) -> None:
         """Reset all game components"""
         self._state.reset()
         self._events.reset()
-        self._movement.reset()
+        self._movement.reset(randomizer_seed=map_seed) #408
         self._items.reset()
 
     def move_player(self, direction: Direction) -> ErrorCode | None:
@@ -54,12 +60,15 @@ class Game:
         if not self._state.get_can_move():
             return ErrorCode.CANT_MOVE_NOW
 
-        move_attempt = self._movement.move(direction)
-        if move_attempt is ErrorCode:
-            return move_attempt
+        move_result = self._movement.move(direction)
+        if isinstance(move_result, ErrorCode):
+            return move_result
 
-        self._state.start_move()
-        return None
+        if self._movement.is_placement_mode_on(): # Unknown tile
+            self._state.start_move()
+            return None
+
+        return self._draw_event_card() # Known tile, skip placement
 
     def rotate_tile(self) -> ErrorCode | None:
         """Rotate the drawn tile in a given direction"""
@@ -73,22 +82,22 @@ class Game:
         if not self._state.get_is_moving():
             return ErrorCode.CANT_PLACE_NOW
 
-        place_move = self._movement.lock_placement_tile()
-        if place_move is ErrorCode:
-            return place_move
+        place_result = self._movement.lock_placement_tile()
+        if isinstance(place_result, ErrorCode):
+            return place_result
 
         self._state.end_move()
 
-        return self._draw_event_card().get_error_code()
+        return self._draw_event_card()
 
     def pick_zombie_door(self, direction: Direction) -> ErrorCode | None:
         """Trigger a zombie door attack in the selected direction"""
         if not self._state.get_is_zombie_door():
             return ErrorCode.NOT_ZOMBIE_DOOR
 
-        pick_door = self._movement.create_zombie_door(direction)
-        if pick_door is ErrorCode:
-            return pick_door
+        zombie_door_result = self._movement.create_zombie_door(direction)
+        if isinstance(zombie_door_result, ErrorCode):
+            return zombie_door_result
 
         self._state.confirm_zombie_door()
 
@@ -100,11 +109,10 @@ class Game:
             return ErrorCode.CANT_ATTACK
 
         if instant_kill:
-            if self._items.get_has_instant_kill():
-                self._items.discard(0)
-                self._items.discard(1)
-            else:
+            if not self._items.get_has_instant_kill():
                 return ErrorCode.NO_INSTANT_KILL
+            self._items.discard(0)
+            self._items.discard(1)
 
         attack_bonus_result = self._items.attack_bonus(use_chainsaw)
         if attack_bonus_result.is_fail():
@@ -128,7 +136,7 @@ class Game:
             return ErrorCode.NO_OIL
 
         flee_move = self._movement.flee(direction)
-        if flee_move is ErrorCode:
+        if isinstance(flee_move, ErrorCode):
             return flee_move
 
         self._state.flee(with_oil)
@@ -172,7 +180,7 @@ class Game:
             return ErrorCode.HAVENT_FOUND_ITEM
 
         add_item = self._items.keep_found_item()
-        if add_item is ErrorCode:
+        if isinstance(add_item, ErrorCode):
             return add_item
 
         self._state.end_found_item()
@@ -193,14 +201,15 @@ class Game:
 
         return None
 
-    def discard_item(self, slot_id: int = -1) -> ErrorCode | None:
+    def discard_item(self, slot_id: int) -> ErrorCode | None:
         """Discard the chosen item from the items"""
         return self._items.discard(slot_id)
 
     def use_item(self, item_id: ItemCode) -> ErrorCode | None:
         """Use the chosen item (gasoline or soda)"""
         use = self._items.use(item_id)
-        if use is ErrorCode:
+
+        if isinstance(use, ErrorCode):
             return use
 
         if item_id == ItemCode.SODA:
@@ -208,30 +217,34 @@ class Game:
 
         return None
 
-    def end_turn(self, is_cower: bool = False) -> Result:
+    def end_turn(self, is_cower: bool = False) -> ErrorCode | None:
         """End the current turn, optionally cowering"""
         if not self._state.get_can_end_turn():
-            return Result.fail(ErrorCode.CANT_END_TURN_NOW)
+            return ErrorCode.CANT_END_TURN_NOW
 
         if is_cower:
             cower_action = self._state.cower()
             if cower_action.is_fail():
-                return cower_action
+                return cower_action.get_error_code()
 
             cower_event, shuffled = self._events.waste_time()
             if cower_event.is_fail():
-                return cower_event
+                return cower_event.get_error_code()
             if shuffled:
                 self._state.advance_time()
 
         tile_effect = self._movement.get_tile_effect()
+        print(tile_effect)
         self._state.do_end_turn_effect(tile_effect)
 
-        if self._state.get_is_doing_events():
+        if self._state.get_is_doing_events(): # temple or graveyard
             return self._draw_event_card()
-        else:
+        elif self._state.get_is_searching_item():
+            pass
+        else: #heal or none
             self._state.start_new_turn()
-            return Result.success(None)
+
+        return None
 
     def check_win_loss(self) -> Result:
         """To be called after each action; determines if the player has won or lost"""
@@ -241,3 +254,10 @@ class Game:
             return Result.success("You lose!")
 
         return Result.fail(ErrorCode.NOT_WON_OR_LOST)
+
+    def get_status(self) -> str:
+        hp = self._state.get_hp()
+        attack = 1+self._items.attack_bonus(False).get_data()
+        items_tuple = self._items.held_items()
+        items = f"{items_tuple[0]}, {items_tuple[1]}"
+        return f"Health: {hp}, Attack: {attack}, Items: {items}"

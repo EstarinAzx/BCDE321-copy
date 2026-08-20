@@ -1,14 +1,16 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from zimp.domain.common.dev_card import CardEffect
 from zimp.domain.common.result import Result
 from zimp.domain.common.tile_effect import TileEffect
 
-
+@runtime_checkable
 class GameStateContract(Protocol):
+    """Contract used by the application layer to request changes to the Game State."""
+
     def reset(self) -> None:
         pass
-    def get_hp(self) -> str:
+    def get_hp(self) -> int:
         pass
     def get_time(self) -> int:
         pass

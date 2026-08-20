@@ -2,6 +2,7 @@ import pytest
 
 from zimp.domain.common.dev_card import DevCard, CardEffect, CardEffectType
 from zimp.domain.common.error_code import ErrorCode
+from zimp.domain.common.item_code import ItemCode
 from zimp.domain.events.events import Events
 
 
@@ -18,7 +19,7 @@ def sample_cards():
                 CardEffect(CardEffectType.ITEM),
                 CardEffect(CardEffectType.ZOMBIES, 6),
             ),
-            0,
+            ItemCode.NONE,
         ),
         DevCard(
             (
@@ -26,7 +27,7 @@ def sample_cards():
                 CardEffect(CardEffectType.HEALTH, -1),
                 CardEffect(CardEffectType.ITEM),
             ),
-            1,
+            ItemCode.OIL,
         ),
         DevCard(
             (
@@ -34,7 +35,7 @@ def sample_cards():
                 CardEffect(CardEffectType.ZOMBIES, 4),
                 CardEffect(CardEffectType.HEALTH, -1),
             ),
-            2,
+            ItemCode.GASOLINE,
         ),
     )
 
@@ -43,36 +44,6 @@ def sample_cards():
 def deck(sample_cards):
     """A fresh Events instance for each test."""
     return Events(sample_cards)
-
-
-@pytest.fixture
-def none_deck():
-    return (
-        DevCard(
-            (
-                CardEffect(CardEffectType.NONE),
-                CardEffect(CardEffectType.NONE),
-                CardEffect(CardEffectType.NONE),
-            ),
-            0,
-        ),
-        DevCard(
-            (
-                CardEffect(CardEffectType.NONE),
-                CardEffect(CardEffectType.NONE),
-                CardEffect(CardEffectType.NONE),
-            ),
-            0,
-        ),
-        DevCard(
-            (
-                CardEffect(CardEffectType.NONE),
-                CardEffect(CardEffectType.NONE),
-                CardEffect(CardEffectType.NONE),
-            ),
-            0,
-        ),
-    )
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -88,44 +59,47 @@ class TestValidateCards:
         with pytest.raises(ValueError, match="No dev cards configured"):
             Events(())
 
-    def test_less_than_two_cards_raises_runtime_error(self):
+    def test_less_than_three_cards_raises_runtime_error(self):
         card = DevCard(
             (
                 CardEffect(CardEffectType.NONE),
                 CardEffect(CardEffectType.NONE),
                 CardEffect(CardEffectType.NONE),
             ),
-            0,
+            ItemCode.NONE,
         )
 
-        with pytest.raises(RuntimeError, match="Dev card deck must have at least 2 cards"):
+        with pytest.raises(
+            RuntimeError,
+            match="Dev card deck must have at least 3 cards",
+        ):
             Events((card,))
 
     def test_non_dev_card_raises_value_error(self):
         with pytest.raises(ValueError, match="Misconfigured dev card"):
             Events((object(), object(), object()))  # type: ignore[arg-type]
 
-    def test_negative_item_id_raises_value_error(self):
+    def test_non_item_code_raises_value_error(self):
         card = DevCard(
             (
                 CardEffect(CardEffectType.NONE),
                 CardEffect(CardEffectType.NONE),
                 CardEffect(CardEffectType.NONE),
             ),
-            -1,
+            0,  # type: ignore[arg-type]
         )
 
         with pytest.raises(ValueError, match="Misconfigured card item"):
             Events((card, card, card))
 
-    def test_non_int_item_id_raises_value_error(self):
+    def test_none_item_code_raises_value_error(self):
         card = DevCard(
             (
                 CardEffect(CardEffectType.NONE),
                 CardEffect(CardEffectType.NONE),
                 CardEffect(CardEffectType.NONE),
             ),
-            "bad",  # type: ignore[arg-type]
+            None,  # type: ignore[arg-type]
         )
 
         with pytest.raises(ValueError, match="Misconfigured card item"):
@@ -136,7 +110,7 @@ class TestValidateCards:
             (# type: ignore[arg-type]
                 CardEffect(CardEffectType.NONE),
             ),
-            0,
+            ItemCode.NONE,
         )
 
         with pytest.raises(ValueError, match="Dev cards must have 3 effects"):
@@ -149,7 +123,7 @@ class TestValidateCards:
                 "bad",
                 CardEffect(CardEffectType.NONE),
             ),
-            0,
+            ItemCode.NONE,
         )
 
         with pytest.raises(ValueError, match="Misconfigured card effect"):
@@ -162,7 +136,7 @@ class TestValidateCards:
                 CardEffect("bad"),  # type: ignore[arg-type]
                 CardEffect(CardEffectType.NONE),
             ),
-            0,
+            ItemCode.NONE,
         )
 
         with pytest.raises(ValueError, match="Misconfigured card effect type"):
@@ -175,7 +149,7 @@ class TestValidateCards:
                 CardEffect(CardEffectType.HEALTH, "bad"),  # type: ignore[arg-type]
                 CardEffect(CardEffectType.NONE),
             ),
-            0,
+            ItemCode.NONE,
         )
 
         with pytest.raises(ValueError, match="Misconfigured card effect value"):
@@ -210,14 +184,12 @@ class TestReset:
         assert deck.get_remaining_card_count() == len(sample_cards) - 2
 
     def test_reset_restores_deck_to_full_shuffled_size(self, deck, sample_cards):
-        # Draw a card first.
         result, shuffled = deck.draw_item()
 
         assert not result.is_fail()
         assert shuffled is False
         assert deck.get_remaining_card_count() == len(sample_cards) - 1
 
-        # Reset starts a fresh shuffled deck and discards two cards.
         deck.reset()
 
         assert deck.get_remaining_card_count() == len(sample_cards) - 2
@@ -301,7 +273,10 @@ class TestDrawEvent:
 
         assert not result.is_fail()
         assert shuffled is False
-        assert result.get_data() == CardEffect(CardEffectType.ZOMBIES, 6)
+        assert result.get_data() == CardEffect(
+            CardEffectType.ZOMBIES,
+            6,
+        )
 
     @pytest.mark.parametrize("time", [-1, 3, 99])
     def test_invalid_time_returns_fatal_error(self, deck, time):
@@ -326,25 +301,26 @@ class TestDrawEvent:
 # -----------------------------------------------------------------------------------------------------------
 
 class TestDrawItem:
-    def test_returns_item_id(self, deck):
+    def test_returns_item_code(self, deck):
         result, shuffled = deck.draw_item()
 
         assert not result.is_fail()
         assert shuffled is False
-        assert isinstance(result.get_data(), int)
-        assert result.get_data() == 0
+        assert isinstance(result.get_data(), ItemCode)
+        assert result.get_data() == ItemCode.NONE
 
     def test_returns_next_card_item_after_draw(self, deck):
         result, shuffled = deck.draw_item()
 
         assert not result.is_fail()
         assert shuffled is False
+        assert result.get_data() == ItemCode.NONE
 
         result, shuffled = deck.draw_item()
 
         assert not result.is_fail()
         assert shuffled is False
-        assert result.get_data() == 1
+        assert result.get_data() == ItemCode.OIL
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -394,15 +370,14 @@ class TestShuffle:
     def test_drawing_from_empty_deck_shuffles(self, sample_cards):
         handler = Events(sample_cards)
 
-        # Exhaust the initial deck.
         for _ in range(len(sample_cards)):
             result, shuffled = handler.waste_time()
+
             assert not result.is_fail()
             assert shuffled is False
 
         assert handler.get_remaining_card_count() == 0
 
-        # The next draw must shuffle and discard two cards.
         result, shuffled = handler.waste_time()
 
         assert not result.is_fail()
@@ -432,7 +407,6 @@ class TestShuffle:
         assert shuffled2 is False
         assert shuffled3 is False
 
-        # Deck is now empty, so the next draw triggers a shuffle.
         result4, shuffled4 = handler.waste_time()
 
         assert not result4.is_fail()
@@ -441,7 +415,6 @@ class TestShuffle:
     def test_reset_does_not_report_shuffle(self, sample_cards):
         handler = Events(sample_cards)
 
-        # reset() has no return value, so only verify its resulting state.
         handler.reset()
 
         assert handler.get_remaining_card_count() == len(sample_cards) - 2

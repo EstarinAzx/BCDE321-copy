@@ -6,28 +6,42 @@ from zimp.domain.common.item_code import ItemCode
 from zimp.domain.common.result import Result
 from zimp.domain.game.game import Game
 
-from tests.game.game_fakes import GameStateContract, MovementContract, ItemsContract, EventsContract
+from tests.game.game_fakes import (
+    FakeEvents,
+    FakeGameState,
+    FakeItems,
+    FakeMovement,
+)
+
 
 @pytest.fixture
 def game():
-    state = GameStateContract()
-    movement = MovementContract()
-    items = ItemsContract()
-    events = EventsContract()
+    state = FakeGameState()
+    movement = FakeMovement()
+    items = FakeItems()
+    events = FakeEvents()
 
-    game = Game(state, movement, items, events)
+    game = Game(
+        state=state,
+        movement=movement,
+        items=items,
+        events=events,
+    )
 
     return game, state, movement, items, events
 
 
-def error(result):
-    assert result.is_fail()
-    return result.get_error_code()
+# ======================================================================
+# reset
+# ======================================================================
 
+def test_game_constructor_resets_all_components(game):
+    _, state, movement, items, events = game
 
-# ---------------------------------------------------------------------------
-# Reset
-# ---------------------------------------------------------------------------
+    assert state.reset_calls == 1
+    assert movement.reset_calls == 1
+    assert items.reset_calls == 1
+    assert events.reset_calls == 1
 
 def test_reset_resets_all_components(game):
     game, state, movement, items, events = game
@@ -40,400 +54,494 @@ def test_reset_resets_all_components(game):
     assert events.reset_calls == 2
 
 
-# ---------------------------------------------------------------------------
-# Movement
-# ---------------------------------------------------------------------------
+# ======================================================================
+# move_player
+# ======================================================================
 
-def test_move_player_not_allowed_when_state_disallows_movement(game):
+def test_move_player_when_movement_is_not_allowed_returns_error(game):
     game, state, movement, _, _ = game
+
     state.can_move = False
 
     result = game.move_player(Direction.NORTH)
 
-    assert error(result) == ErrorCode.CANT_MOVE_NOW
-    assert movement.move_player_calls == []
+    assert result == ErrorCode.CANT_MOVE_NOW
+    assert movement.move_calls == []
 
 
 def test_move_player_delegates_to_movement(game):
-    game, state, movement, _, _ = game
+    game, _, movement, _, _ = game
 
     result = game.move_player(Direction.NORTH)
 
-    assert not result.is_fail()
-    assert movement.move_player_calls == [Direction.NORTH]
+    assert result is None
+    assert movement.move_calls == [Direction.NORTH]
+
+
+def test_move_player_propagates_movement_error(game):
+    game, _, movement, _, _ = game
+
+    movement.move_result = ErrorCode.INVALID_MOVE_NO_DOOR
+
+    result = game.move_player(Direction.NORTH)
+
+    assert result == ErrorCode.INVALID_MOVE_NO_DOOR
+
+
+def test_move_player_enters_placement_mode_after_unknown_tile(game):
+    game, state, movement, _, events = game
+
+    movement.placement_mode_on = True
+
+    result = game.move_player(Direction.NORTH)
+
+    assert result is None
     assert state.start_move_calls == 1
+    assert events.draw_event_calls == []
 
 
-def test_move_player_passes_movement_error(game):
-    game, state, movement, _, _ = game
-    movement.move_player_result = Result.fail(
-        ErrorCode.INVALID_MOVE_NO_DOOR
-    )
+def test_move_player_draws_event_after_known_tile(game):
+    game, state, movement, _, events = game
+
+    movement.placement_mode_on = False
 
     result = game.move_player(Direction.NORTH)
 
-    assert error(result) == ErrorCode.INVALID_MOVE_NO_DOOR
+    assert result is None
     assert state.start_move_calls == 0
+    assert events.draw_event_calls == [state.time]
 
 
-def test_rotate_tile_not_allowed_when_not_moving(game):
+# ======================================================================
+# _draw_event_card / post-event checks
+# ======================================================================
+
+def test_event_draw_failure_is_propagated(game):
+    game, state, _, _, events = game
+
+    events.draw_event_result = Result.fail(ErrorCode.CANT_MOVE_NOW)
+
+    result = game.move_player(Direction.NORTH)
+
+    assert result == ErrorCode.CANT_MOVE_NOW
+    assert state.apply_card_effect_calls == []
+    assert state.advance_time_calls == 0
+
+
+def test_event_card_effect_is_applied(game):
+    game, state, _, _, events = game
+
+    events.draw_event_result = Result.success("zombie attack")
+
+    game.move_player(Direction.NORTH)
+
+    assert state.apply_card_effect_calls == ["zombie attack"]
+
+
+def test_shuffled_event_advances_time(game):
+    game, state, _, _, events = game
+
+    events.draw_event_result = Result.success("event")
+    events.draw_event_shuffled = True
+
+    game.move_player(Direction.NORTH)
+
+    assert state.advance_time_calls == 1
+
+
+def test_non_shuffled_event_does_not_advance_time(game):
+    game, state, _, _, events = game
+
+    events.draw_event_shuffled = False
+
+    game.move_player(Direction.NORTH)
+
+    assert state.advance_time_calls == 0
+
+
+def test_post_event_check_starts_zombie_door_first(game):
     game, state, movement, _, _ = game
+
+    state.can_end_turn = True
+    movement.needs_zombie_door = True
+    state.has_ended_turn = True
+
+    game.move_player(Direction.NORTH)
+
+    assert movement.need_zombie_door_calls == 1
+    assert state.start_zombie_door_calls == 1
+    assert state.start_new_turn_calls == 0
+
+
+def test_post_event_check_starts_new_turn_when_no_zombie_door(game):
+    game, state, movement, _, _ = game
+
+    state.can_end_turn = True
+    movement.needs_zombie_door = False
+    state.has_ended_turn = True
+
+    game.move_player(Direction.NORTH)
+
+    assert state.start_zombie_door_calls == 0
+    assert state.start_new_turn_calls == 1
+
+
+def test_post_event_check_does_nothing_when_cannot_end_turn(game):
+    game, state, movement, _, _ = game
+
+    state.can_end_turn = False
+    movement.needs_zombie_door = True
+    state.has_ended_turn = True
+
+    game.move_player(Direction.NORTH)
+
+    assert movement.need_zombie_door_calls == 0
+    assert state.start_zombie_door_calls == 0
+    assert state.start_new_turn_calls == 0
+
+
+def test_post_event_check_does_not_start_new_turn_if_turn_not_ended(game):
+    game, state, movement, _, _ = game
+
+    state.can_end_turn = True
+    movement.needs_zombie_door = False
+    state.has_ended_turn = False
+
+    game.move_player(Direction.NORTH)
+
+    assert state.start_new_turn_calls == 0
+
+
+# ======================================================================
+# rotate_tile
+# ======================================================================
+
+def test_rotate_tile_when_not_moving_returns_error(game):
+    game, state, movement, _, _ = game
+
     state.is_moving = False
 
     result = game.rotate_tile()
 
-    assert error(result) == ErrorCode.CANT_ROTATE_NOW
+    assert result == ErrorCode.CANT_ROTATE_NOW
     assert movement.rotate_placement_tile_calls == 0
 
 
 def test_rotate_tile_delegates_to_movement(game):
     game, state, movement, _, _ = game
+
     state.is_moving = True
 
     result = game.rotate_tile()
 
-    assert not result.is_fail()
+    assert result is None
     assert movement.rotate_placement_tile_calls == 1
 
 
-def test_rotate_tile_passes_movement_error(game):
+def test_rotate_tile_propagates_movement_error(game):
     game, state, movement, _, _ = game
+
     state.is_moving = True
-    movement.rotate_placement_tile_result = Result.fail(
-        ErrorCode.INVALID_ACTION_ROTATE_LOCKED_TILE
-    )
+    movement.rotate_placement_tile_result = ErrorCode.CANT_MOVE_NOW
 
     result = game.rotate_tile()
 
-    assert error(result) == ErrorCode.INVALID_ACTION_ROTATE_LOCKED_TILE
+    assert result == ErrorCode.CANT_MOVE_NOW
 
 
-# ---------------------------------------------------------------------------
-# Tile placement / event drawing
-# ---------------------------------------------------------------------------
+# ======================================================================
+# place_tile
+# ======================================================================
 
-def test_place_tile_not_allowed_when_not_moving(game):
+def test_place_tile_when_not_moving_returns_error(game):
     game, state, movement, _, _ = game
+
     state.is_moving = False
 
     result = game.place_tile()
 
-    assert error(result) == ErrorCode.CANT_PLACE_NOW
+    assert result == ErrorCode.CANT_PLACE_NOW
     assert movement.lock_placement_tile_calls == 0
 
 
-def test_place_tile_passes_lock_error(game):
+def test_place_tile_locks_tile_and_ends_move(game):
     game, state, movement, _, _ = game
+
     state.is_moving = True
-    movement.lock_placement_tile_result = Result.fail(
-        ErrorCode.FATAL_UNPLACEABLE_TILE
-    )
+    movement.lock_placement_tile_result = None
 
     result = game.place_tile()
 
-    assert error(result) == ErrorCode.FATAL_UNPLACEABLE_TILE
+    assert result is None
+    assert movement.lock_placement_tile_calls == 1
+    assert state.end_move_calls == 1
+
+
+def test_place_tile_propagates_lock_error(game):
+    game, state, movement, _, events = game
+
+    state.is_moving = True
+    movement.lock_placement_tile_result = ErrorCode.CANT_MOVE_NOW
+
+    result = game.place_tile()
+
+    assert result == ErrorCode.CANT_MOVE_NOW
     assert state.end_move_calls == 0
+    assert events.draw_event_calls == []
 
 
-def test_place_tile_ends_move_and_draws_event(game):
+def test_place_tile_draws_event_after_successful_lock(game):
     game, state, movement, _, events = game
+
     state.is_moving = True
-    state.time = 3
-    events.draw_event_result = Result.success("zombies")
-
-    result = game.place_tile()
-
-    assert not result.is_fail()
-    assert state.end_move_calls == 1
-    assert events.draw_event_calls == [3]
-    assert state.apply_card_effect_calls == ["zombies"]
-
-
-def test_place_tile_passes_event_error(game):
-    game, state, movement, _, events = game
-    state.is_moving = True
-    events.draw_event_result = Result.fail(ErrorCode.OUT_OF_TIME)
-
-    result = game.place_tile()
-
-    assert error(result) == ErrorCode.OUT_OF_TIME
-    assert state.end_move_calls == 1
-    assert state.apply_card_effect_calls == []
-
-
-def test_drawing_shuffled_event_advances_time(game):
-    game, state, _, _, events = game
-    state.is_moving = True
-    events.draw_event_shuffled = True
+    movement.lock_placement_tile_result = None
 
     game.place_tile()
 
-    assert state.advance_time_calls == 1
+    assert state.end_move_calls == 1
+    assert events.draw_event_calls == [state.time]
 
 
-def test_drawing_event_starts_zombie_door(game):
+# ======================================================================
+# pick_zombie_door
+# ======================================================================
+
+def test_pick_zombie_door_when_not_in_mode_returns_error(game):
     game, state, movement, _, _ = game
-    state.is_moving = True
-    movement.zombie_door = True
 
-    game.place_tile()
-
-    # _do_post_event_checks is not called by place_tile itself.
-    # The event effect is applied by _draw_event_card.
-    # Therefore no zombie-door transition is expected here.
-    assert state.start_zombie_door_calls == 0
-
-
-# ---------------------------------------------------------------------------
-# Zombie door
-# ---------------------------------------------------------------------------
-
-def test_pick_zombie_door_requires_zombie_door(game):
-    game, state, movement, _, _ = game
     state.is_zombie_door = False
 
-    result = game.pick_zombie_door(Direction.EAST)
+    result = game.pick_zombie_door(Direction.NORTH)
 
-    assert error(result) == ErrorCode.NOT_ZOMBIE_DOOR
-    assert movement.pick_zombie_door_calls == []
+    assert result == ErrorCode.NOT_ZOMBIE_DOOR
+    assert movement.create_zombie_door_calls == []
 
 
 def test_pick_zombie_door_delegates_to_movement(game):
     game, state, movement, _, _ = game
+
     state.is_zombie_door = True
 
     result = game.pick_zombie_door(Direction.EAST)
 
-    assert not result.is_fail()
-    assert movement.pick_zombie_door_calls == [Direction.EAST]
+    assert result is None
+    assert movement.create_zombie_door_calls == [Direction.EAST]
     assert state.confirm_zombie_door_calls == 1
 
 
-def test_pick_zombie_door_passes_movement_error(game):
+def test_pick_zombie_door_propagates_movement_error(game):
     game, state, movement, _, _ = game
+
     state.is_zombie_door = True
-    movement.pick_zombie_door_result = Result.fail(
-        ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE
-    )
+    movement.create_zombie_door_result = ErrorCode.INVALID_MOVE_NO_DOOR
 
-    result = game.pick_zombie_door(Direction.EAST)
+    result = game.pick_zombie_door(Direction.WEST)
 
-    assert error(result) == \
-        ErrorCode.INVALID_MOVE_ZOMBIE_DOOR_TO_KNOWN_TILE
+    assert result == ErrorCode.INVALID_MOVE_NO_DOOR
     assert state.confirm_zombie_door_calls == 0
 
 
-# ---------------------------------------------------------------------------
-# Attack
-# ---------------------------------------------------------------------------
+# ======================================================================
+# attack
+# ======================================================================
 
-def test_attack_requires_permission_from_state(game):
-    game, state, _, _, _ = game
+def test_attack_when_not_allowed_returns_error(game):
+    game, state, items, _, = game[0], game[1], game[3], game[4]
+
     state.can_attack = False
 
     result = game.attack()
 
-    assert error(result) == ErrorCode.CANT_ATTACK
+    assert result == ErrorCode.CANT_ATTACK
+    assert items.attack_bonus_calls == []
 
 
-def test_attack_uses_attack_bonus(game):
+def test_attack_uses_item_attack_bonus(game):
     game, state, _, items, _ = game
-    items.attack_bonus_result = 3
+
+    items.attack_bonus_result = Result.success(3)
 
     result = game.attack()
 
-    assert not result.is_fail()
+    assert result is None
     assert items.attack_bonus_calls == [False]
     assert state.attack_calls == [(3, False)]
     assert items.record_battle_calls == 1
 
 
-def test_attack_can_use_chainsaw(game):
+def test_attack_passes_chainsaw_flag_to_items(game):
     game, state, _, items, _ = game
-    items.attack_bonus_result = 5
+
+    items.attack_bonus_result = Result.success(4)
 
     result = game.attack(use_chainsaw=True)
 
-    assert not result.is_fail()
+    assert result is None
     assert items.attack_bonus_calls == [True]
-    assert state.attack_calls == [(5, False)]
+    assert state.attack_calls == [(4, False)]
 
 
-def test_attack_instant_kill_uses_item(game):
+def test_attack_propagates_attack_bonus_error(game):
     game, state, _, items, _ = game
 
-    result = game.attack(instant_kill=True)
+    items.attack_bonus_result = Result.fail(ErrorCode.NO_CHAINSAW)
 
-    assert not result.is_fail()
-    assert items.try_use_instant_kill_calls == 1
-    assert state.attack_calls == [(0, True)]
+    result = game.attack(use_chainsaw=True)
 
-
-def test_attack_passes_no_instant_kill(game):
-    game, _, _, items, _ = game
-
-    game.attack()
-
-    assert items.try_use_instant_kill_calls == 0
-
-
-def test_attack_passes_instant_kill_error(game):
-    game, state, _, items, _ = game
-    items.try_use_instant_kill_result = Result.fail(
-        ErrorCode.NO_INSTANT_KILL
-    )
-
-    result = game.attack(instant_kill=True)
-
-    assert error(result) == ErrorCode.NO_INSTANT_KILL
+    assert result == ErrorCode.NO_CHAINSAW
     assert state.attack_calls == []
     assert items.record_battle_calls == 0
 
 
-def test_attack_records_battle(game):
+def test_attack_with_instant_kill_requires_items(game):
     game, _, _, items, _ = game
 
-    game.attack()
+    items.instant_kill_available = False
 
+    result = game.attack(instant_kill=True)
+
+    assert result == ErrorCode.NO_INSTANT_KILL
+    assert items.discard_calls == []
+
+
+def test_attack_with_instant_kill_discards_both_required_items(game):
+    game, state, _, items, _ = game
+
+    items.instant_kill_available = True
+    items.attack_bonus_result = Result.success(0)
+
+    result = game.attack(instant_kill=True)
+
+    assert result is None
+    assert items.discard_calls == [0, 1]
+    assert state.attack_calls == [(0, True)]
     assert items.record_battle_calls == 1
 
 
-def test_attack_performs_post_event_checks(game):
-    game, state, movement, _, _ = game
-    movement.zombie_door = True
+def test_attack_post_event_checks_are_performed(game):
+    game, state, movement, items, _ = game
+
+    items.attack_bonus_result = Result.success(2)
+    state.can_end_turn = True
+    movement.needs_zombie_door = True
 
     game.attack()
 
     assert state.start_zombie_door_calls == 1
 
 
-def test_attack_starts_new_turn_after_event(game):
+# ======================================================================
+# flee
+# ======================================================================
+
+def test_flee_when_not_allowed_returns_error(game):
     game, state, movement, _, _ = game
-    state.has_ended_turn = True
 
-    game.attack()
-
-    assert state.start_new_turn_calls == 1
-
-
-# ---------------------------------------------------------------------------
-# Flee
-# ---------------------------------------------------------------------------
-
-def test_flee_requires_permission_from_state(game):
-    game, state, movement, _, _ = game
     state.can_flee = False
 
-    result = game.flee(Direction.WEST)
+    result = game.flee(Direction.NORTH)
 
-    assert error(result) == ErrorCode.CANT_FLEE
-    assert movement.flee_zombies_calls == []
+    assert result == ErrorCode.CANT_FLEE
+    assert movement.flee_calls == []
 
 
-def test_flee_without_oil_does_not_check_for_oil(game):
-    game, _, movement, items, _ = game
+def test_flee_delegates_to_movement(game):
+    game, state, movement, _, _ = game
 
-    result = game.flee(Direction.WEST)
+    result = game.flee(Direction.NORTH)
 
-    assert not result.is_fail()
-    assert items.get_has_oil_calls == 0
-    assert items.use_calls == []
-    assert movement.flee_zombies_calls == [Direction.WEST]
+    assert result is None
+    assert movement.flee_calls == [Direction.NORTH]
+    assert state.flee_calls == [False]
+
+
+def test_flee_propagates_movement_error(game):
+    game, state, movement, _, _ = game
+
+    movement.flee_result = ErrorCode.INVALID_MOVE_NO_DOOR
+
+    result = game.flee(Direction.NORTH)
+
+    assert result == ErrorCode.INVALID_MOVE_NO_DOOR
+    assert state.flee_calls == []
 
 
 def test_flee_with_oil_requires_oil(game):
     game, _, movement, items, _ = game
+
     items.has_oil = False
 
-    result = game.flee(Direction.WEST, with_oil=True)
+    result = game.flee(Direction.NORTH, with_oil=True)
 
-    assert error(result) == ErrorCode.NO_OIL
-    assert items.get_has_oil_calls == 1
-    assert movement.flee_zombies_calls == []
+    assert result == ErrorCode.NO_OIL
+    assert movement.flee_calls == []
 
 
-def test_flee_with_oil_uses_oil_after_successful_move(game):
+def test_flee_with_oil_uses_oil_after_success(game):
     game, state, movement, items, _ = game
 
-    result = game.flee(Direction.WEST, with_oil=True)
+    result = game.flee(Direction.SOUTH, with_oil=True)
 
-    assert not result.is_fail()
-    assert movement.flee_zombies_calls == [Direction.WEST]
+    assert result is None
+    assert movement.flee_calls == [Direction.SOUTH]
     assert state.flee_calls == [True]
     assert items.use_calls == [ItemCode.OIL]
 
 
-def test_flee_without_oil_passes_false_to_state(game):
-    game, state, _, _, _ = game
+def test_flee_without_oil_does_not_use_oil(game):
+    game, _, _, items, _ = game
 
-    game.flee(Direction.WEST)
+    result = game.flee(Direction.SOUTH, with_oil=False)
 
-    assert state.flee_calls == [False]
-
-
-def test_flee_passes_movement_error(game):
-    game, _, movement, items, _ = game
-    movement.flee_zombies_result = Result.fail(
-        ErrorCode.INVALID_MOVE_FLEE_TO_UNKNOWN_TILE
-    )
-
-    result = game.flee(Direction.WEST)
-
-    assert error(result) == ErrorCode.INVALID_MOVE_FLEE_TO_UNKNOWN_TILE
+    assert result is None
     assert items.use_calls == []
 
 
-def test_flee_performs_post_event_checks(game):
-    game, state, movement, _, _ = game
-    movement.zombie_door = True
+# ======================================================================
+# perform_search_for_item
+# ======================================================================
 
-    game.flee(Direction.WEST)
-
-    assert state.start_zombie_door_calls == 1
-
-
-# ---------------------------------------------------------------------------
-# Search for item
-# ---------------------------------------------------------------------------
-
-def test_search_requires_searching_state(game):
+def test_search_for_item_when_not_searching_returns_error(game):
     game, state, _, _, events = game
+
     state.is_searching_item = False
 
     result = game.perform_search_for_item()
 
-    assert error(result) == ErrorCode.CANT_SEARCH_NOW
+    assert result == ErrorCode.CANT_SEARCH_NOW
     assert events.draw_item_calls == 0
 
 
-def test_search_draws_item_and_adds_it(game):
+def test_search_for_item_draws_item(game):
     game, state, _, items, events = game
+
     state.is_searching_item = True
     events.draw_item_result = Result.success(ItemCode.SODA)
 
     result = game.perform_search_for_item()
 
-    assert not result.is_fail()
-    assert result.get_data() == ItemCode.SODA
+    assert result is None
     assert events.draw_item_calls == 1
     assert items.find_item_calls == [ItemCode.SODA]
     assert state.find_item_calls == 1
 
 
-def test_search_passes_event_error(game):
+def test_search_for_item_propagates_draw_error(game):
     game, state, _, items, events = game
+
     state.is_searching_item = True
-    events.draw_item_result = Result.fail(ErrorCode.OUT_OF_TIME)
+    events.draw_item_result = Result.fail(ErrorCode.CANT_MOVE_NOW)
 
     result = game.perform_search_for_item()
 
-    assert error(result) == ErrorCode.OUT_OF_TIME
+    assert result == ErrorCode.CANT_MOVE_NOW
     assert items.find_item_calls == []
     assert state.find_item_calls == 0
 
 
-def test_search_advances_time_when_deck_shuffles(game):
+def test_search_for_item_advances_time_when_deck_shuffled(game):
     game, state, _, _, events = game
+
     state.is_searching_item = True
     events.draw_item_shuffled = True
 
@@ -442,280 +550,301 @@ def test_search_advances_time_when_deck_shuffles(game):
     assert state.advance_time_calls == 1
 
 
-# ---------------------------------------------------------------------------
-# Ignore / take / don't take items
-# ---------------------------------------------------------------------------
+def test_search_for_item_does_not_advance_time_without_shuffle(game):
+    game, state, _, _, events = game
 
-def test_ignore_search_requires_found_search_state(game):
+    state.is_searching_item = True
+    events.draw_item_shuffled = False
+
+    game.perform_search_for_item()
+
+    assert state.advance_time_calls == 0
+
+
+# ======================================================================
+# ignore_search_for_item
+# ======================================================================
+
+def test_ignore_search_when_not_searching_returns_error(game):
     game, state, _, _, _ = game
+
     state.is_searching_item = False
 
     result = game.ignore_search_for_item()
 
-    assert error(result) == ErrorCode.CANT_SEARCH_NOW
+    assert result == ErrorCode.CANT_SEARCH_NOW
+    assert state.end_searching_item_calls == 0
 
 
 def test_ignore_search_ends_search(game):
-    game, state, movement, _, _ = game
+    game, state, _, _, _ = game
+
     state.is_searching_item = True
 
     result = game.ignore_search_for_item()
 
-    assert not result.is_fail()
+    assert result is None
     assert state.end_searching_item_calls == 1
 
 
-def test_ignore_search_performs_post_event_checks(game):
-    game, state, movement, _, _ = game
-    state.is_searching_item = True
-    movement.zombie_door = True
+# ======================================================================
+# take_item
+# ======================================================================
 
-    game.ignore_search_for_item()
+def test_take_item_when_no_item_found_returns_error(game):
+    game, state, _, items, _ = game
 
-    assert state.start_zombie_door_calls == 1
-
-
-def test_take_item_requires_found_item(game):
-    game, state, _, _, _ = game
     state.has_found_item = False
 
     result = game.take_item()
 
-    assert error(result) == ErrorCode.HAVENT_FOUND_ITEM
+    assert result == ErrorCode.HAVENT_FOUND_ITEM
+    assert items.keep_found_item_calls == 0
 
 
-def test_take_item_keeps_item_and_ends_found_item(game):
+def test_take_item_keeps_found_item(game):
     game, state, _, items, _ = game
+
     state.has_found_item = True
+    items.keep_found_item_result = None
 
     result = game.take_item()
 
-    assert not result.is_fail()
+    assert result is None
     assert items.keep_found_item_calls == 1
     assert state.end_found_item_calls == 1
 
 
-def test_take_item_passes_items_error(game):
+def test_take_item_propagates_inventory_error(game):
     game, state, _, items, _ = game
+
     state.has_found_item = True
-    items.keep_found_item_result = Result.fail(ErrorCode.NO_SPACE)
+    items.keep_found_item_result = ErrorCode.NO_SPACE
 
     result = game.take_item()
 
-    assert error(result) == ErrorCode.NO_SPACE
+    assert result == ErrorCode.NO_SPACE
     assert state.end_found_item_calls == 0
 
 
-def test_dont_take_item_requires_found_item(game):
-    game, state, _, _, _ = game
+# ======================================================================
+# dont_take_item
+# ======================================================================
+
+def test_dont_take_item_when_no_item_found_returns_error(game):
+    game, state, _, items, _ = game
+
     state.has_found_item = False
 
     result = game.dont_take_item()
 
-    assert error(result) == ErrorCode.HAVENT_FOUND_ITEM
+    assert result == ErrorCode.HAVENT_FOUND_ITEM
+    assert items.dont_take_item_calls == 0
 
 
-def test_dont_take_item_ends_found_item(game):
+def test_dont_take_item_discards_found_item(game):
     game, state, _, items, _ = game
+
     state.has_found_item = True
 
     result = game.dont_take_item()
 
-    assert not result.is_fail()
+    assert result is None
     assert items.dont_take_item_calls == 1
     assert state.end_found_item_calls == 1
 
 
-# ---------------------------------------------------------------------------
-# Discard / use item
-# ---------------------------------------------------------------------------
+# ======================================================================
+# discard_item
+# ======================================================================
 
 def test_discard_item_delegates_to_items(game):
     game, _, _, items, _ = game
-    discarded = Result.success(ItemCode.SODA)
-    items.discard_result = Result.success((discarded, False))
 
-    result = game.discard_item(2)
+    items.discard_result = None
 
-    assert result is discarded
-    assert items.discard_calls == [2]
+    result = game.discard_item(1)
+
+    assert result is None
+    assert items.discard_calls == [1]
 
 
-def test_discard_item_passes_items_error(game):
+def test_discard_item_propagates_inventory_error(game):
     game, _, _, items, _ = game
-    items.discard_result = Result.fail(ErrorCode.NO_FOUND_ITEM)
 
-    result = game.discard_item()
+    items.discard_result = ErrorCode.SLOT_EMPTY
 
-    assert error(result) == ErrorCode.NO_FOUND_ITEM
+    result = game.discard_item(0)
+
+    assert result == ErrorCode.SLOT_EMPTY
 
 
-def test_discard_item_advances_time_when_shuffled(game):
+# ======================================================================
+# use_item
+# ======================================================================
+
+def test_use_item_propagates_inventory_error(game):
     game, state, _, items, _ = game
-    discarded = Result.success(ItemCode.SODA)
-    items.discard_result = Result.success((discarded, True))
 
-    game.discard_item()
-
-    assert state.advance_time_calls == 1
-
-
-def test_use_item_passes_items_result(game):
-    game, _, _, items, _ = game
-    items.use_result = Result.fail(ErrorCode.NO_SODA)
+    items.use_result = ErrorCode.NO_SODA
 
     result = game.use_item(ItemCode.SODA)
 
-    assert error(result) == ErrorCode.NO_SODA
+    assert result == ErrorCode.NO_SODA
+    assert state.drink_soda_calls == 0
 
 
-def test_use_soda_drinks_soda(game):
+def test_use_soda_drinks_soda_after_successful_use(game):
     game, state, _, items, _ = game
-    items.use_result = Result.success(None)
+
+    items.use_result = None
 
     result = game.use_item(ItemCode.SODA)
 
-    assert not result.is_fail()
+    assert result is None
+    assert items.use_calls == [ItemCode.SODA]
     assert state.drink_soda_calls == 1
 
 
 def test_use_non_soda_does_not_drink_soda(game):
     game, state, _, items, _ = game
-    items.use_result = Result.success(None)
 
-    game.use_item(ItemCode.OIL)
+    items.use_result = None
 
+    result = game.use_item(ItemCode.OIL)
+
+    assert result is None
+    assert items.use_calls == [ItemCode.OIL]
     assert state.drink_soda_calls == 0
 
 
-# ---------------------------------------------------------------------------
-# End turn
-# ---------------------------------------------------------------------------
+# ======================================================================
+# end_turn
+# ======================================================================
 
-def test_end_turn_requires_permission_from_state(game):
-    game, state, movement, _, _ = game
+def test_end_turn_when_not_allowed_returns_error(game):
+    game, state, movement, _, events = game
+
     state.can_end_turn = False
 
     result = game.end_turn()
 
-    assert error(result) == ErrorCode.CANT_END_TURN_NOW
+    assert result == ErrorCode.CANT_END_TURN_NOW
     assert movement.get_tile_effect_calls == 0
+    assert events.draw_event_calls == []
 
 
 def test_end_turn_gets_tile_effect(game):
     game, state, movement, _, _ = game
-    movement.tile_effect = "fire"
+
+    movement.tile_effect = "heal"
 
     result = game.end_turn()
 
-    assert not result.is_fail()
+    assert result is None
     assert movement.get_tile_effect_calls == 1
-    assert state.do_end_turn_effect_calls == ["fire"]
+    assert state.do_end_turn_effect_calls == ["heal"]
 
 
-def test_end_turn_starts_new_turn_when_not_doing_events(game):
-    game, state, _, _, _ = game
-    state.is_doing_events = False
-
-    result = game.end_turn()
-
-    assert not result.is_fail()
-    assert state.start_new_turn_calls == 1
-
-
-def test_end_turn_draws_event_when_doing_events(game):
+def test_end_turn_starts_new_turn_when_no_event_or_search(game):
     game, state, _, _, events = game
-    state.is_doing_events = True
-    events.draw_event_result = Result.success("zombies")
+
+    state.is_doing_events = False
+    state.is_searching_item = False
 
     result = game.end_turn()
 
-    assert not result.is_fail()
-    assert events.draw_event_calls == [0]
-    assert state.apply_card_effect_calls == ["zombies"]
+    assert result is None
+    assert state.start_new_turn_calls == 1
+    assert events.draw_event_calls == []
+
+
+def test_end_turn_during_item_search_does_not_start_new_turn(game):
+    game, state, _, _, _ = game
+
+    state.is_doing_events = False
+    state.is_searching_item = True
+
+    result = game.end_turn()
+
+    assert result is None
     assert state.start_new_turn_calls == 0
 
 
-def test_cower_calls_state_cower(game):
-    game, state, _, _, _ = game
-
-    result = game.end_turn(is_cower=True)
-
-    assert not result.is_fail()
-    assert state.cower_calls == 1
-
-
-def test_failed_cower_stops_turn_end(game):
-    game, state, _, _, _ = game
-    state.cower = lambda: Result.fail(ErrorCode.ALREADY_COWERED)
-
-    result = game.end_turn(is_cower=True)
-
-    assert error(result) == ErrorCode.ALREADY_COWERED
-    assert state.do_end_turn_effect_calls == []
-
-
-def test_cower_wastes_time(game):
+def test_end_turn_during_events_draws_event(game):
     game, state, _, _, events = game
 
-    result = game.end_turn(is_cower=True)
-
-    assert not result.is_fail()
-    assert events.waste_time_calls == 1
-
-
-def test_cower_passes_waste_time_error(game):
-    game, state, _, _, events = game
-    events.waste_time_result = Result.fail(ErrorCode.OUT_OF_TIME)
-
-    result = game.end_turn(is_cower=True)
-
-    assert error(result) == ErrorCode.OUT_OF_TIME
-    assert state.do_end_turn_effect_calls == []
-
-
-def test_cower_advances_time_when_waste_time_shuffles(game):
-    game, state, _, _, events = game
-    events.waste_time_shuffled = True
-
-    game.end_turn(is_cower=True)
-
-    assert state.advance_time_calls == 1
-
-
-def test_cowering_does_not_waste_time_without_cower(game):
-    game, _, _, _, events = game
-
-    game.end_turn()
-
-    assert events.waste_time_calls == 0
-
-
-def test_end_turn_passes_event_error(game):
-    game, state, _, _, events = game
     state.is_doing_events = True
-    events.draw_event_result = Result.fail(ErrorCode.OUT_OF_TIME)
 
     result = game.end_turn()
 
-    assert error(result) == ErrorCode.OUT_OF_TIME
+    assert result is None
+    assert events.draw_event_calls == [state.time]
+    assert state.apply_card_effect_calls == ["event"]
 
 
-# ---------------------------------------------------------------------------
-# Win / loss
-# ---------------------------------------------------------------------------
+def test_cower_calls_state_cower_and_wastes_time(game):
+    game, state, _, _, events = game
 
-def test_check_win_loss_reports_neither(game):
+    result = game.end_turn(is_cower=True)
+
+    assert result is None
+    assert state.cower_calls == 1
+    assert events.waste_time_calls == 1
+
+
+def test_cower_failure_is_propagated(game):
+    game, state, _, _, events = game
+
+    state.cower_result = Result.fail(ErrorCode.CANT_END_TURN_NOW)
+
+    result = game.end_turn(is_cower=True)
+
+    assert result == ErrorCode.CANT_END_TURN_NOW
+    assert events.waste_time_calls == 0
+
+
+def test_cower_waste_time_failure_is_propagated(game):
+    game, state, _, _, events = game
+
+    events.waste_time_result = Result.fail(ErrorCode.CANT_MOVE_NOW)
+
+    result = game.end_turn(is_cower=True)
+
+    assert result == ErrorCode.CANT_MOVE_NOW
+
+
+def test_cower_with_shuffled_card_advances_time(game):
+    game, state, _, _, events = game
+
+    events.waste_time_shuffled = True
+
+    result = game.end_turn(is_cower=True)
+
+    assert result is None
+    assert state.advance_time_calls == 1
+
+
+def test_cower_without_shuffle_does_not_advance_time(game):
+    game, state, _, _, events = game
+
+    events.waste_time_shuffled = False
+
+    result = game.end_turn(is_cower=True)
+
+    assert result is None
+    assert state.advance_time_calls == 0
+
+
+# ======================================================================
+# check_win_loss
+# ======================================================================
+
+def test_check_win_loss_returns_win(game):
     game, state, _, _, _ = game
 
-    result = game.check_win_loss()
-
-    assert error(result) == ErrorCode.NOT_WON_OR_LOST
-
-
-def test_check_win_loss_reports_win(game):
-    game, state, _, _, _ = game
     state.has_won = True
+    state.has_lost = False
 
     result = game.check_win_loss()
 
@@ -723,8 +852,10 @@ def test_check_win_loss_reports_win(game):
     assert result.get_data() == "You win!"
 
 
-def test_check_win_loss_reports_loss(game):
+def test_check_win_loss_returns_loss(game):
     game, state, _, _, _ = game
+
+    state.has_won = False
     state.has_lost = True
 
     result = game.check_win_loss()
@@ -733,12 +864,38 @@ def test_check_win_loss_reports_loss(game):
     assert result.get_data() == "You lose!"
 
 
-def test_check_win_loss_prioritises_win(game):
+def test_check_win_loss_returns_not_finished(game):
     game, state, _, _, _ = game
-    state.has_won = True
-    state.has_lost = True
+
+    state.has_won = False
+    state.has_lost = False
 
     result = game.check_win_loss()
 
-    assert not result.is_fail()
-    assert result.get_data() == "You win!"
+    assert result.is_fail()
+    assert result.get_error_code() == ErrorCode.NOT_WON_OR_LOST
+
+
+# ======================================================================
+# get_status
+# ======================================================================
+
+def test_get_status_uses_state_and_items(game):
+    game, state, _, items, _ = game
+
+    state.hp = 7
+    items.attack_bonus_result = Result.success(2)
+    items.held_items_result = (
+        ItemCode.SODA,
+        ItemCode.OIL,
+    )
+
+    result = game.get_status()
+
+    assert result == (
+        f"Health: 7, Attack: 3, "
+        f"Items: {ItemCode.SODA}, {ItemCode.OIL}"
+    )
+
+    assert items.attack_bonus_calls == [False]
+    assert items.held_items_calls == 1

@@ -2,7 +2,7 @@ from typing import runtime_checkable, Protocol
 
 from zimp.domain.common.direction import Direction
 from zimp.domain.common.error_code import ErrorCode
-from zimp.domain.common.result import Result
+from zimp.domain.common.tile_data import TileData
 from zimp.domain.common.tile_effect import TileEffect
 
 
@@ -31,8 +31,8 @@ class MovementContract(Protocol):
     def is_placement_mode_on(self) -> bool:
         """Check if the placement mode is on"""
 
-    #def get_tile_data(self) -> list[TileData]:
-    #    """Get data for displayed tiles"""
+    def get_tile_data(self) -> list[TileData]:
+        """Get data for displayed tiles"""
 
     def get_player_position(self) -> tuple[int, int]:
         """Gets players position"""

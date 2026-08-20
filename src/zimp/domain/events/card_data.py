@@ -1,58 +1,59 @@
 from zimp.domain.common.dev_card import DevCard, CardEffect, CardEffectType
+from zimp.domain.common.item_code import ItemCode
 
 CARD_DATA = (
     DevCard(
         (CardEffect(CardEffectType.NONE),
         CardEffect(CardEffectType.ITEM),
         CardEffect(CardEffectType.ZOMBIES, 6)),
-        1,
+        ItemCode.OIL,
     ),
     DevCard(
         (CardEffect(CardEffectType.ZOMBIES, 4),
         CardEffect(CardEffectType.HEALTH, -1),
         CardEffect(CardEffectType.ITEM)),
-        2,
+        ItemCode.GASOLINE,
     ),
     DevCard(
         (CardEffect(CardEffectType.ITEM),
         CardEffect(CardEffectType.ZOMBIES, 4),
         CardEffect(CardEffectType.HEALTH, -1)),
-        3,
+        ItemCode.BOARD_WITH_NAILS,
     ),
     DevCard(
         (CardEffect(CardEffectType.ZOMBIES, 4),
         CardEffect(CardEffectType.HEALTH, -1),
         CardEffect(CardEffectType.ZOMBIES, 6)),
-        4,
+        ItemCode.MACHETE,
     ),
     DevCard(
         (CardEffect(CardEffectType.ITEM),
         CardEffect(CardEffectType.ZOMBIES, 5),
         CardEffect(CardEffectType.HEALTH, -1)),
-        5,
+        ItemCode.GRISLY_FEMUR,
     ),
     DevCard(
         (CardEffect(CardEffectType.HEALTH, -1),
         CardEffect(CardEffectType.ZOMBIES, 4),
         CardEffect(CardEffectType.NONE)),
-        6,
+        ItemCode.GOLF_CLUB,
     ),
     DevCard(
         (CardEffect(CardEffectType.ZOMBIES, 3),
         CardEffect(CardEffectType.NONE),
         CardEffect(CardEffectType.ZOMBIES, 5)),
-        7,
+        ItemCode.CHAINSAW,
     ),
     DevCard(
         (CardEffect(CardEffectType.HEALTH, 1),
         CardEffect(CardEffectType.ITEM),
         CardEffect(CardEffectType.ZOMBIES, 4)),
-        8,
+        ItemCode.SODA,
     ),
     DevCard(
         (CardEffect(CardEffectType.NONE),
         CardEffect(CardEffectType.HEALTH, 1),
         CardEffect(CardEffectType.ZOMBIES, 4)),
-        9,
+        ItemCode.CANDLE,
     ),
 )

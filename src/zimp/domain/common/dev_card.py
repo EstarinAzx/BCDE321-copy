@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 
+from zimp.domain.common.item_code import ItemCode
+
+
 class CardEffectType(Enum):
     NONE = auto()
     HEALTH = auto()
@@ -15,4 +18,4 @@ class CardEffect:
 @dataclass(frozen=True)
 class DevCard:
     effects: tuple[CardEffect, CardEffect, CardEffect]
-    item: int
+    item: ItemCode

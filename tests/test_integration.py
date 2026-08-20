@@ -5,7 +5,7 @@ from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.result import Result
 from zimp.domain.game.game import Game
 
-from zimp.domain.game_state.game_state import GameState
+from zimp.domain.state.game_state import GameState
 from zimp.domain.events.events import Events
 from zimp.domain.items.items import Items
 from zimp.domain.movement.movement import Movement

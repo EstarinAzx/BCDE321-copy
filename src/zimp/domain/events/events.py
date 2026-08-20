@@ -1,5 +1,6 @@
 import random
 
+from zimp.domain.common.item_code import ItemCode
 from zimp.domain.common.result import Result
 from zimp.domain.common.error_code import ErrorCode
 
@@ -33,7 +34,7 @@ class Events:
             if not isinstance(card, DevCard):
                 raise ValueError("Misconfigured dev card")
 
-            if not isinstance(card.item, int) or card.item < 0:
+            if not isinstance(card.item, ItemCode):
                 raise ValueError("Misconfigured card item")
 
             if len(card.effects) != 3:
