@@ -121,6 +121,15 @@ def test_keeping_nothing_is_refused() -> None:
     assert GameItems().keep_found_item() is ErrorCode.NO_FOUND_ITEM
 
 
+def test_keeping_an_empty_find_is_refused() -> None:
+    """`ItemCode.NONE` means the search turned up nothing, not an item."""
+    items = GameItems()
+    items.find_item(ItemCode.NONE)
+
+    assert items.keep_found_item() is ErrorCode.NO_FOUND_ITEM
+    assert items.held_items() == (ItemCode.NONE, ItemCode.NONE)
+
+
 def test_keeping_an_item_with_no_pocket_free_is_refused() -> None:
     items = carrying("machete", "chainsaw")
     items.find_item(ItemCode.CANDLE)

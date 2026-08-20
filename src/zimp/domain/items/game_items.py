@@ -71,7 +71,9 @@ class GameItems:
         self._found = item_id
 
     def keep_found_item(self) -> ErrorCode | None:
-        if self._found is None:
+        # `ItemCode.NONE` is the deck saying the search turned up nothing.
+        # It is not an item, and it has no name to add.
+        if self._found is None or self._found is ItemCode.NONE:
             return ErrorCode.NO_FOUND_ITEM
         try:
             self._inventory.add(ID_FOR_ITEM_CODE[self._found])
