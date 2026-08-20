@@ -4,6 +4,7 @@ from tkinter import ttk
 from zimp.integration.game_controller import GameController
 
 
+
 class TkGameView:
     """Minimal accessible shell. Visual sophistication is not assessed."""
 
@@ -58,8 +59,8 @@ class TkGameView:
             ("Don't take found item", "dont_take_found_item"),
             ("Discard item 1", "discard_item_1"),
             ("Discard item 2", "discard_item_2"),
-            ("Use item 1", "use_item_1"),
-            ("Use item 2", "use_item_2"),
+            ("Drink soda", "use_soda"),
+            ("Refuel chainsaw", "use_gasoline"),
         )
 
         self._action_buttons: list[ttk.Button] = []
@@ -150,5 +151,8 @@ class TkGameView:
     def _call_controller(self, method_name: str) -> None:
         """Call a controller method and display its result."""
         method = getattr(self._controller, method_name)
-
-        self.status.set(method())
+        win_loss = self._controller.check_win_loss()
+        if win_loss is None:
+            self.status.set(method() + f"\n{self._controller.get_status()}")
+        else:
+            self.status.set(win_loss)

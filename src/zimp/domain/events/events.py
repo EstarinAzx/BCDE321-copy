@@ -28,7 +28,7 @@ class Events:
             raise ValueError("No dev cards configured")
 
         if len(cards) <= 2:
-            raise RuntimeError("Dev card deck must have at least 2 cards")
+            raise RuntimeError("Dev card deck must have at least 3 cards")
 
         for card in cards:
             if not isinstance(card, DevCard):
