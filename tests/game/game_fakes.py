@@ -61,14 +61,14 @@ class FakeGameState:
     def get_is_moving(self) -> bool:
         return self.is_moving
 
-    def get_is_zombie_door(self) -> bool:
-        return self.is_zombie_door
-
     def get_can_attack(self) -> bool:
         return self.can_attack
 
     def get_can_flee(self) -> bool:
         return self.can_flee
+
+    def get_is_zombie_door(self) -> bool:
+        return self.is_zombie_door
 
     def get_is_searching_item(self) -> bool:
         return self.is_searching_item
@@ -79,17 +79,17 @@ class FakeGameState:
     def get_can_end_turn(self) -> bool:
         return self.can_end_turn
 
-    def get_is_doing_events(self) -> bool:
-        return self.is_doing_events
-
-    def get_has_ended_turn(self) -> bool:
-        return self.has_ended_turn
-
     def check_is_won(self) -> bool:
         return self.has_won
 
     def check_is_lost(self) -> bool:
         return self.has_lost
+
+    def get_is_doing_events(self) -> bool:
+        return self.is_doing_events
+
+    def get_has_ended_turn(self) -> bool:
+        return self.has_ended_turn
 
     def advance_time(self) -> None:
         self.advance_time_calls += 1
@@ -127,8 +127,16 @@ class FakeGameState:
         self.end_found_item_calls += 1
         self.has_found_item = False
 
+    def change_hp(self, amount: int) -> None:
+        pass
+
     def apply_card_effect(self, effect) -> None:
         self.apply_card_effect_calls.append(effect)
+
+    def start_combat(self, num_zombies: int) -> None:
+        pass
+    def end_combat(self) -> None:
+        pass
 
     def attack(self, attack_bonus: int, instant_kill: bool) -> None:
         self.attack_calls.append((attack_bonus, instant_kill))
@@ -139,6 +147,11 @@ class FakeGameState:
     def cower(self) -> Result:
         self.cower_calls += 1
         return self.cower_result
+
+    def take_totem(self) -> None:
+        pass
+    def bury_totem(self) -> None:
+        pass
 
     def drink_soda(self) -> None:
         self.drink_soda_calls += 1
@@ -324,6 +337,8 @@ class FakeEvents:
         self.draw_item_calls = 0
         self.waste_time_calls = 0
 
+    def get_remaining_card_count(self):
+        return 0
     def draw_event(self, time: int) -> tuple[Result, bool]:
         self.draw_event_calls.append(time)
         return self.draw_event_result, self.draw_event_shuffled

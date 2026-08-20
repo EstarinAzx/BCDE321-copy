@@ -28,27 +28,27 @@ class Events:
             raise ValueError("No dev cards configured")
 
         if len(cards) <= 2:
-            raise RuntimeError("Dev card deck must have at least 3 cards")
+            raise ValueError("Dev card deck must have at least 3 cards")
 
         for card in cards:
             if not isinstance(card, DevCard):
-                raise ValueError("Misconfigured dev card")
+                raise TypeError("Misconfigured dev card")
 
             if not isinstance(card.item, ItemCode):
-                raise ValueError("Misconfigured card item")
+                raise TypeError("Misconfigured card item")
 
             if len(card.effects) != 3:
                 raise ValueError("Dev cards must have 3 effects")
 
             for effect in card.effects:
                 if not isinstance(effect, CardEffect):
-                    raise ValueError("Misconfigured card effect")
+                    raise TypeError("Misconfigured card effect")
 
                 if not isinstance(effect.effect_type, CardEffectType):
-                    raise ValueError("Misconfigured card effect type")
+                    raise TypeError("Misconfigured card effect type")
 
                 if not isinstance(effect.value, int):
-                    raise ValueError("Misconfigured card effect value")
+                    raise TypeError("Misconfigured card effect value")
 
 
 
@@ -80,12 +80,13 @@ class Events:
 
     def draw_event(self, time: int) -> tuple[Result, bool]:
         """Draw a dev card from the deck and return the effect, shuffling if required"""
+        if not 0 <= time < self._EFFECTS_LENGTH:
+            return Result.fail(ErrorCode.FATAL_ERROR), False
+
         card, shuffled = self._draw_card()
         if card.is_fail():
             return card, shuffled
 
-        if not 0 <= time < self._EFFECTS_LENGTH:
-            return Result.fail(ErrorCode.FATAL_ERROR), shuffled
         current_effect = card.get_data().effects[time]
 
         return Result.success(current_effect), shuffled
