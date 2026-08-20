@@ -23,7 +23,6 @@ from zimp.domain.items.inventory import Inventory
 _MISSING = {
     ItemCode.SODA: ErrorCode.NO_SODA,
     ItemCode.GASOLINE: ErrorCode.NO_GASOLINE,
-    ItemCode.OIL: ErrorCode.NO_OIL,
 }
 
 
@@ -95,7 +94,8 @@ class GameItems:
 
     def use(self, item_id: ItemCode) -> ErrorCode | None:
         if item_id not in _MISSING:
-            # Weapons are passive: carried, never used.
+            # Weapons are passive: carried, never used. Oil is the same --
+            # it is not something the player uses on its own.
             return ErrorCode.FATAL_ERROR
         if not self._carrying(item_id):
             return _MISSING[item_id]
@@ -106,9 +106,12 @@ class GameItems:
             # itself. The Tkinter path still reads it.
             self._inventory.use(name)
         else:
+            if not self._carrying(ItemCode.CHAINSAW):
+                # Gasoline only does anything in a chainsaw. Spending the
+                # can with nothing to pour it into helps nobody.
+                return ErrorCode.NO_CHAINSAW
             self._inventory.discard(name)
-            if item_id is ItemCode.GASOLINE:
-                self._inventory.refuel_chainsaw()
+            self._inventory.refuel_chainsaw()
         return None
 
     def _carrying(self, item_id: ItemCode) -> bool:

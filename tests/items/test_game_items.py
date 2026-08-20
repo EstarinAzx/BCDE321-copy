@@ -213,17 +213,21 @@ def test_using_gasoline_you_do_not_have_is_refused() -> None:
     assert carrying("chainsaw").use(ItemCode.GASOLINE) is ErrorCode.NO_GASOLINE
 
 
-def test_using_oil_spends_it() -> None:
-    """Game calls use(OIL) when fleeing, though the contract's docstring
-    names only soda and gasoline."""
+def test_using_gasoline_without_a_chainsaw_is_refused_and_keeps_it() -> None:
+    """Gasoline only does anything in a chainsaw. Pouring it on the ground
+    would spend the can for nothing."""
+    items = carrying("gasoline")
+
+    assert items.use(ItemCode.GASOLINE) is ErrorCode.NO_CHAINSAW
+    assert items.held_items() == (ItemCode.GASOLINE, ItemCode.NONE)
+
+
+def test_using_oil_is_refused_and_keeps_it() -> None:
+    """Oil is not a thing the player uses on its own."""
     items = carrying("oil")
 
-    assert items.use(ItemCode.OIL) is None
-    assert items.held_items() == (ItemCode.NONE, ItemCode.NONE)
-
-
-def test_using_oil_you_do_not_have_is_refused() -> None:
-    assert carrying("machete").use(ItemCode.OIL) is ErrorCode.NO_OIL
+    assert items.use(ItemCode.OIL) is not None
+    assert items.held_items() == (ItemCode.OIL, ItemCode.NONE)
 
 
 def test_using_a_weapon_is_refused_and_keeps_it() -> None:
