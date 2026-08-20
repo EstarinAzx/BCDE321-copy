@@ -12,7 +12,7 @@ Owned by items. Consumed by whoever resolves a SEARCH_FOR_ITEM result.
 from zimp.domain.common.item_code import ItemCode
 
 # The nine items the rulebook defines. This is the inventory's vocabulary:
-# every id the rest of the game may hand to `ItemsContract.add`.
+# every id the rest of the game may hand to `InventoryContract.add`.
 #
 # Being listed here does not mean the inventory gives the item behaviour --
 # see IMPLEMENTED_ITEMS. An unimplemented item is carried, cannot be used,

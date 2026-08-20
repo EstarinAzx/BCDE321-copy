@@ -1,4 +1,4 @@
-from zimp.domain.common.contract_items import ItemsContract
+from zimp.domain.common.contract_inventory import InventoryContract
 from zimp.domain.contracts import MovementGateway
 from zimp.domain.items.inventory import Effect
 
@@ -6,7 +6,7 @@ from zimp.domain.items.inventory import Effect
 class GameController:
     """Thin, testable boundary between Tkinter events and domain behaviour."""
 
-    def __init__(self, movement: MovementGateway, items: ItemsContract) -> None:
+    def __init__(self, movement: MovementGateway, items: InventoryContract) -> None:
         self._movement = movement
         self._items = items
 
