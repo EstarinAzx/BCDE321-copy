@@ -53,7 +53,7 @@ class Tile:
     def get_door_directions(self) -> tuple[Direction, ...]:
         """Gets the direction the tiles doors open towards.
         Returns:
-            tuple[Direction]: list of directions of the tiles doors.
+            tuple[Direction]: List of directions of the tiles doors.
         """
         # adds the rotation to get the correct direction
         door_directions = tuple(
@@ -68,7 +68,7 @@ class Tile:
     def has_door_in_direction(self, direction: Direction) -> bool:
         """Checks if the tile has a door in the given direction.
         Args:
-            direction (Direction): direction to check.
+            direction (Direction): Direction to check.
         Returns:
             bool: True if the tile has a door in the direction, False if not.
         """
@@ -81,7 +81,7 @@ class Tile:
     def has_door_in_opposite_direction(self, direction: Direction) -> bool:
         """Checks if the tile has a door in the opposite given direction.
         Args:
-            direction (Direction): direction to check.
+            direction (Direction): Direction to check.
         Returns:
             bool: True if the tile has a door in the opposite direction, False if not.
         """
@@ -94,7 +94,7 @@ class Tile:
     def add_zombie_door(self, direction: Direction) -> None:
         """Adds a zombie door to the tile in the given direction.
         Args:
-            direction (Direction): direction of the zombie door.
+            direction (Direction): Direction of the zombie door.
         """
         self.__zombie_door = direction
 
@@ -105,10 +105,10 @@ class Tile:
         self.__is_locked = False
 
     def get_data(self, position: tuple[int, int]) -> TileData:
-        """Gets the tiles data.
+        """Gets the tiles id, position, rotation, zombie door and locked value.
         Args:
-            position (tuple[int, int]): position of the tile.
+            position (tuple[int, int]): Position of the tile.
         Returns:
-            TileData: the tiles data.
+            TileData: Object containing the tiles data.
         """
         return TileData(self.__id, position, self.__rotation, self.__zombie_door, self.__is_locked)

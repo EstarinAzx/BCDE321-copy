@@ -1,10 +1,10 @@
 import random
 
+from zimp.domain.common.direction import Direction
 from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.result import Result
-from zimp.domain.common.direction import Direction
-from zimp.domain.movement.tile import Tile
 from zimp.domain.common.tile_effect import TileEffect
+from zimp.domain.movement.tile import Tile
 from zimp.domain.movement.validators import is_valid_seed
 
 
@@ -56,14 +56,14 @@ class TileManager:
         }
 
     def __shuffle_tile_order(self) -> None:
-        """Shuffles order of inside/outside tiles."""
+        """Shuffles order of inside and outside tiles."""
         self.__tile_randomizer.seed(self.__randomizer_seed)
         inside_random_order = self.__tile_randomizer.sample(range(self.__MIN_TILE_ID, self.__MAX_TILE_ID),
                                                             k=self.__NUM_OF_TILES)
         outside_random_order = self.__tile_randomizer.sample(range(self.__MIN_TILE_ID, self.__MAX_TILE_ID),
                                                              k=self.__NUM_OF_TILES)
 
-        # add inside/outside starting tiles to start of list
+        # add inside/outside starting tiles to the start of each list
         inside_random_order.remove(self.__INSIDE_START_TILE_INDEX)
         outside_random_order.remove(self.__OUTSIDE_START_TILE_INDEX)
         inside_random_order.insert(0, self.__INSIDE_START_TILE_INDEX)
@@ -103,7 +103,7 @@ class TileManager:
         return self.__outside_tile_order_index >= len(self.__outside_tile_order)
 
     def get_next_inside_tile(self) -> Result:
-        """Gets the next inside tile.
+        """Gets the next inside tile following the randomized order.
         Returns:
             Result: Success - next inside tile. | Fail - ErrorCode.
         """
@@ -121,7 +121,7 @@ class TileManager:
         return Result.success(new_tile)
 
     def get_next_outside_tile(self) -> Result:
-        """Gets the next outside tile.
+        """Gets the next outside tile following the randomized order.
         Returns:
             Result: Success - next outside tile. | Fail - ErrorCode.
         """

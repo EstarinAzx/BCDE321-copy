@@ -1,11 +1,11 @@
 from typing import Final
 
+from zimp.domain.common.direction import Direction
 from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.result import Result
-from zimp.domain.common.direction import Direction
-from zimp.domain.movement.tile import Tile
 from zimp.domain.common.tile_data import TileData
 from zimp.domain.common.tile_effect import TileEffect
+from zimp.domain.movement.tile import Tile
 from zimp.domain.movement.tile_manager import TileManager
 from zimp.domain.movement.validators import is_valid_point_type, is_valid_point_within_range, validate_map_and_position, \
     is_move_valid, is_valid_direction
@@ -50,13 +50,14 @@ class GameMap:
         if self.__tile_manager.reset_tile_order(randomizer_seed) is not None:
             raise TypeError("Randomizer seed must be an integer")
 
+        # map details
         self.__map_dimensions: tuple[int, int] = map_dimensions
         self.__starting_position: tuple[int, int] = starting_position
         self.__display_tiles: dict[tuple[int, int], Tile] = {}
-        self.__player_position: tuple[int, int]
+        self.__player_position: tuple[int, int] = self.__starting_position
         # tile placement details
-        self.__is_placement_mode_on: bool
-        self.__player_is_outside: bool
+        self.__is_placement_mode_on: bool = False
+        self.__player_is_outside: bool = False
         self.__last_added_tile: Tile
         self.__last_move_direction: Direction
         self.__last_move_destination_position: tuple[int, int]
@@ -99,7 +100,7 @@ class GameMap:
             move_direction (Direction): Direction player is moving towards.
             current_tile (Tile): The tile the player is currently on.
         """
-        # entry/exit tiles have transition as their north doors
+        # checks if moving through transition door (north door when not rotated)
         moving_through_transition_door = move_direction == current_tile.get_rotation()
         if current_tile.is_exit() and moving_through_transition_door:
             self.__player_is_outside = True
@@ -111,7 +112,7 @@ class GameMap:
         Args:
             new_tile_direction (Direction): Direction the tile is rotated.
         Returns:
-            bool: True if not the exit tile or the transition door points to an empty tile, False if not.
+            bool: True if not the exit tile or the transition door points to an empty tile, False otherwise.
         """
         if not self.__last_added_tile.is_exit():
             return True  # if the tile is not an exit tile no need to check
@@ -131,7 +132,7 @@ class GameMap:
         Args:
             new_tile_direction (Direction): Direction the tile is rotated.
         Returns:
-            bool: True if not the entry tile or the transition door points at anything other than the exit tile, False otherwise.
+            bool: True if not the entry tile or the transition door points at the exit tile, False otherwise.
         """
         if not self.__last_added_tile.is_entry():
             return True  # if the tile is not an entry tile no need to check
@@ -148,10 +149,13 @@ class GameMap:
         return True  # entry arrow pointing at exit tile
 
     def __calculate_placement_tile_rotation(self) -> ErrorCode | None:
-        """Rotates new tile until doors are aligned."""
+        """Rotates new tile until doors are aligned.
+        Returns:
+            ErrorCode: If something went wrong. | None: If nothing went wrong.
+        """
         original_rotation = self.__last_added_tile.get_rotation()
 
-        # loop through each direction and rotate tile
+        # loop through each direction and rotates tile
         for i in range(4):
             new_tile_direction = Direction((original_rotation.value + (90 * i)) % 360)
             self.__last_added_tile.rotate(new_tile_direction)
@@ -159,9 +163,9 @@ class GameMap:
             # check if doors align
             if self.__last_added_tile.has_door_in_opposite_direction(self.__last_move_direction):
                 if not self.__is_exit_clear(new_tile_direction):
-                    continue  # if exit is not clear then skip to next rotation
+                    continue  # if exit is not clear then invalid rotation, skip to next rotation
                 if not self.__is_entry_aligned(new_tile_direction):
-                    continue  # if entry is not aligned then skip to next rotation
+                    continue  # if entry is not aligned then invalid rotation, skip to next rotation
 
                 return None  # valid rotation found
 
@@ -170,7 +174,7 @@ class GameMap:
 
     def __setup_placement_tile(self, move_direction: Direction, current_tile: Tile,
                                destination_position: tuple[int, int]) -> ErrorCode | None:
-        """Adds next tile and sets up its rotation.
+        """Adds next tile and sets its rotation.
         Args:
             move_direction (Direction): Direction player is moving towards.
             current_tile (Tile): The tile the player is currently on.
@@ -196,7 +200,7 @@ class GameMap:
         return None  # success
 
     def __calculate_position(self, position: tuple[int, int], direction: Direction) -> Result:
-        """Calculates the new position from the given position to the given direction.
+        """Calculates the new position from the given position and direction.
         Args:
             position (tuple[int, int]): Current position.
             direction (Direction): Direction from the current position to the new position.
@@ -219,11 +223,11 @@ class GameMap:
         if not is_valid_point_within_range(new_pos, self.__DEFAULT_MINIMUM_START_POSITION, self.__map_dimensions):
             return Result.fail(ErrorCode.INVALID_MOVE_OUT_OF_BOUNDS)
 
-        return Result.success(new_pos)
+        return Result.success(new_pos)  # success
 
     def __handle_move_to_blank_tile(self, direction: Direction, current_tile: Tile,
                                     destination_position: tuple[int, int]) -> ErrorCode | None:
-        """Handles move to blank tile.
+        """Checks move to blank tile and setups placement tile.
         Args:
             direction (Direction): Direction player is trying to move.
             current_tile (Tile): Current tile the player is on.
@@ -239,11 +243,11 @@ class GameMap:
         if setup_place_error is not None:
             return setup_place_error
 
-        return None  # no error - need placement mode
+        return None  # success
 
     def __handle_move_to_known_tile(self, direction: Direction, destination_tile: Tile, current_tile: Tile,
                                     destination_position: tuple[int, int]) -> ErrorCode | None:
-        """Handles move to known tile.
+        """Checks move to known tile and moves player to destination tile.
         Args:
             direction (Direction): Direction player is trying to move.
             destination_tile (Tile): Destination tile the player is trying to move to.
@@ -259,7 +263,7 @@ class GameMap:
         # valid move updates player
         self.__update_player_area(direction, current_tile)
         self.__player_position = destination_position
-        return None  # no error - move was success
+        return None  # success
 
     def __move_player(self, direction: Direction, is_flee: bool) -> ErrorCode | None:
         """Attempts to move the player in the given direction.
@@ -278,7 +282,7 @@ class GameMap:
                ErrorCode: If something went wrong. | None: If nothing went wrong.
          """
         if self.__is_placement_mode_on:
-            return ErrorCode.INVALID_ACTION_PLACEMENT_MODE_ON
+            return ErrorCode.INVALID_ACTION_PLACEMENT_MODE_ON  # prevents moves while placement mode is on
 
         if not is_valid_direction(direction):
             return ErrorCode.INVALID_VALUE_DIRECTION
@@ -344,7 +348,7 @@ class GameMap:
                ErrorCode: If something went wrong. | None: If nothing went wrong.
          """
         if self.__is_placement_mode_on:
-            return ErrorCode.INVALID_ACTION_PLACEMENT_MODE_ON
+            return ErrorCode.INVALID_ACTION_PLACEMENT_MODE_ON  # prevents moves while placement mode is on
 
         if not is_valid_direction(direction):
             return ErrorCode.INVALID_VALUE_DIRECTION
@@ -363,7 +367,7 @@ class GameMap:
 
         # add zombie door
         self.__last_added_tile.add_zombie_door(direction)
-        return None  # no error
+        return None  # success
 
     def rotate_placement_tile(self) -> ErrorCode | None:
         """Rotates the currently placeable tile.
@@ -391,11 +395,11 @@ class GameMap:
         # lock tile placement and move player
         self.__last_added_tile.lock()
         self.__player_position = self.__last_move_destination_position
-        self.__is_placement_mode_on = False  # placement mode OFF
+        self.__is_placement_mode_on = False  # turn placement mode OFF
         return None  # success
 
     def need_zombie_door(self) -> bool:
-        """Checks if zombie door is needed.
+        """Checks if a zombie door is needed.
 
         Zombie doors are needed if the player is inside/outside, no normal doors open to an
         empty tile, and not all tiles have been explored.
@@ -468,23 +472,23 @@ class GameMap:
 
     def reset(self, map_dimensions: tuple[int, int] | None = None, starting_position: tuple[int, int] | None = None,
               randomizer_seed: int | None = None) -> ErrorCode | None:
-        """Resets the game map.
+        """Resets the game map to its initial state.
         Args:
             map_dimensions (tuple[int, int] | None): New map dimensions (width, height) (1-indexed).
-                Defaults to None (used previous map dimensions).
+                Defaults to None (uses previous map dimensions).
             starting_position (tuple[int, int] | None): New starting position (X, Y) (0-indexed).
                 Defaults to None (uses previous starting position).
             randomizer_seed (int | None): New randomizer seed. Defaults to None (random seed).
         Returns:
             ErrorCode: If something went wrong. | None: If nothing went wrong.
         """
-        # checks map and start
-        validation_error = validate_map_and_position(self.__map_dimensions, self.__player_position,
-                                                     self.__DEFAULT_MINIMUM_MAP_DIMENSIONS,
-                                                     self.__DEFAULT_MINIMUM_START_POSITION,
-                                                     map_dimensions, starting_position)
-        if validation_error is not None:
-            return validation_error
+        # checks map dimensions and start position
+        map_start_validation_error = validate_map_and_position(self.__map_dimensions, self.__player_position,
+                                                               self.__DEFAULT_MINIMUM_MAP_DIMENSIONS,
+                                                               self.__DEFAULT_MINIMUM_START_POSITION,
+                                                               map_dimensions, starting_position)
+        if map_start_validation_error is not None:
+            return map_start_validation_error
 
         # checks seed
         seed_error = self.__tile_manager.reset_tile_order(randomizer_seed)
@@ -502,4 +506,4 @@ class GameMap:
             tile.reset()
         self.__display_tiles.clear()
         self.__setup()
-        return None  # reset was success
+        return None  # success

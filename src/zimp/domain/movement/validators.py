@@ -1,10 +1,12 @@
-from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.common.direction import Direction
+from zimp.domain.common.error_code import ErrorCode
 from zimp.domain.movement.tile import Tile
 
 
 def is_valid_direction(value: Direction) -> bool:
     """Checks if the given value is a valid direction.
+    Args:
+        value (Direction): Value to be checked.
     Returns:
         bool: True if the given value is a valid direction, False otherwise.
     """
@@ -12,11 +14,11 @@ def is_valid_direction(value: Direction) -> bool:
 
 
 def is_valid_point_type(value: tuple[int, int]) -> bool:
-    """Checks if the given value is a valid point type of (int, int).
+    """Checks if the given value is a valid tuple of (int, int).
     Args:
         value (tuple[int, int]): Value to be checked.
     Returns:
-        bool: True if the given value is a valid point type of (int, int), False otherwise.
+        bool: True if the given value is a valid tuple of (int, int), False otherwise.
     """
     return (isinstance(value, tuple) and len(value) == 2
             and isinstance(value[0], int) and isinstance(value[1], int))
@@ -120,7 +122,7 @@ def validate_map_and_position(old_map_dim: tuple[int, int], old_start_pos: tuple
                 or is_point_lesser(new_map_dim, min_map_dim)):
             return ErrorCode.INVALID_VALUE_STARTING_POSITION
 
-    return None  # no error
+    return None  # success
 
 
 def is_move_valid(current_tile: Tile, destination_tile: Tile, direction: Direction) -> ErrorCode | None:
@@ -142,5 +144,5 @@ def is_move_valid(current_tile: Tile, destination_tile: Tile, direction: Directi
         return ErrorCode.INVALID_MOVE_NO_DOOR
     elif not (is_move_between_connection or is_same_area):
         return ErrorCode.INVALID_MOVE_ACROSS_AREAS
-    else:
-        return None  # valid move
+
+    return None  # success
